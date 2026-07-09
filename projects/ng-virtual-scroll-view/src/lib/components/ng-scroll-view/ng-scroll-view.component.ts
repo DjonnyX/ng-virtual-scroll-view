@@ -559,7 +559,7 @@ export class NgScrollView extends BaseScrollView {
                                 }
                                 startTimeX = endTimeX;
                                 startTimeY = endTimeY;
-                                return race([fromEvent<MouseEvent>(window, MOUSE_UP, { passive: false }), fromEvent<MouseEvent>(content, MOUSE_UP, { passive: false })]).pipe(
+                                return race([fromEvent<TouchEvent>(window, TOUCH_END, { passive: false }), fromEvent<TouchEvent>(content, TOUCH_END, { passive: false })]).pipe(
                                     takeUntilDestroyed(this._destroyRef),
                                     takeUntil($touchCanceler),
                                     tap(e => {
@@ -755,12 +755,8 @@ export class NgScrollView extends BaseScrollView {
             return;
         }
         if (this._overscrollEnabled) {
-            if (this.scrollDirectionX !== 0) { // ?
-                this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
-            }
-            if (this.scrollDirectionY !== 0) { // ?
-                this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
-            }
+            this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
+            this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
         }
     }
 
