@@ -22,9 +22,9 @@
     </svg>
     @if (scrollbarEnabled()) {
         @if (scrollbarVerticalEnabled()) {
-            <ng-scroll-bar #scrollBarVertical direction="vertical" [size]="thumbSize()" [renderer]="scrollbarThumbRenderer()"
+            <ng-scroll-bar #scrollBarVertical direction="vertical" [size]="thumbSizeVertical()" [renderer]="scrollbarThumbRenderer()"
                 [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()" [loading]="loading()"
-                [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositions()" [prepared]="prepared"
+                [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositionsVertical()" [prepared]="prepared"
                 [interactive]="scrollbarInteractive()" [show]="scrollbarVerticalEnabled() && scrollbarEnabled() && prepared"
                 [startOffset]="topOffset()" [langTextDir]="langTextDir()" [endOffset]="bottomOffset()"
                 [overscrollEnabled]="overscrollEnabled()" [scrollBehavior]="scrollBehavior()"
@@ -32,9 +32,9 @@
                 (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
         }
         @if (scrollbarHorizontalEnabled()) {
-            <ng-scroll-bar #scrollBarHorizontal direction="horizontal" [size]="thumbSize()"
+            <ng-scroll-bar #scrollBarHorizontal direction="horizontal" [size]="thumbSizeHorizontal()"
                 [renderer]="scrollbarThumbRenderer()" [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()"
-                [loading]="loading()" [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositions()"
+                [loading]="loading()" [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositionsHorizontal()"
                 [prepared]="prepared" [interactive]="scrollbarInteractive()"
                 [show]="scrollbarHorizontalEnabled() && scrollbarEnabled() && prepared" [startOffset]="leftOffset()"
                 [langTextDir]="langTextDir()" [endOffset]="rightOffset()" [overscrollEnabled]="overscrollEnabled()"

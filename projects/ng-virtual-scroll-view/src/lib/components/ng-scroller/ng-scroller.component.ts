@@ -86,9 +86,13 @@ export class NgScrollerComponent extends NgScrollView {
 
   public readonly containerClasses: Signal<{ [cName: string]: boolean }>;
 
-  public readonly thumbGradientPositions = signal<GradientColorPositions>([0, 0]);
+  public readonly thumbGradientPositionsHorizontal = signal<GradientColorPositions>([0, 0]);
 
-  public readonly thumbSize = signal<number>(0);
+  public readonly thumbGradientPositionsVertical = signal<GradientColorPositions>([0, 0]);
+
+  public readonly thumbSizeVertical = signal<number>(0);
+
+  public readonly thumbSizeHorizontal = signal<number>(0);
 
   public readonly scrollbarHorizontalEnabled = signal<boolean>(this.scrollableX);
 
@@ -189,9 +193,14 @@ export class NgScrollerComponent extends NgScrollView {
 
   readonly viewInitialized = signal<boolean>(false);
 
-  private _isScrollbarUserAction: boolean = false;
-  get isScrollbarUserAction() {
-    return this._isScrollbarUserAction;
+  private _isScrollbarUserActionX: boolean = false;
+  get isScrollbarUserActionX() {
+    return this._isScrollbarUserActionX;
+  }
+
+  private _isScrollbarUserActionY: boolean = false;
+  get isScrollbarUserActionY() {
+    return this._isScrollbarUserActionY;
   }
 
   protected _$resizeViewport = new Subject<ISize>();
@@ -263,9 +272,10 @@ export class NgScrollerComponent extends NgScrollView {
       $topOffset = toObservable(this.topOffset),
       $bottomOffset = toObservable(this.bottomOffset),
       $scrollbarMinSize = toObservable(this.scrollbarMinSize),
-      $thumbSize = toObservable(this.thumbSize);
+      $thumbSizeHorizontal = toObservable(this.thumbSizeHorizontal),
+      $thumbSizeVertical = toObservable(this.thumbSizeVertical);
 
-    from([$rightOffset, $leftOffset, $thumbSize, $scrollbarMinSize]).pipe(
+    from([$rightOffset, $leftOffset, $thumbSizeHorizontal, $scrollbarMinSize]).pipe(
       takeUntilDestroyed(),
       debounceTime(0),
       tap(() => {
@@ -273,7 +283,7 @@ export class NgScrollerComponent extends NgScrollView {
       }),
     ).subscribe();
 
-    from([$bottomOffset, $topOffset, $thumbSize, $scrollbarMinSize]).pipe(
+    from([$bottomOffset, $topOffset, $thumbSizeVertical, $scrollbarMinSize]).pipe(
       takeUntilDestroyed(),
       debounceTime(0),
       tap(() => {
@@ -288,7 +298,7 @@ export class NgScrollerComponent extends NgScrollView {
       takeUntilDestroyed(this._destroyRef),
       debounceTime(0),
       tap(() => {
-        this.updateScrollBarHandler(false, !this._isScrollbarUserAction);
+        this.updateScrollBarHandler(false, !this._isScrollbarUserActionX);
       }),
     ).subscribe();
 
@@ -296,7 +306,7 @@ export class NgScrollerComponent extends NgScrollView {
       takeUntilDestroyed(this._destroyRef),
       debounceTime(0),
       tap(() => {
-        this.updateScrollBarHandler(true, !this._isScrollbarUserAction);
+        this.updateScrollBarHandler(true, !this._isScrollbarUserActionY);
       }),
     ).subscribe();
 
@@ -400,8 +410,13 @@ export class NgScrollerComponent extends NgScrollView {
           minSize: this.scrollbarMinSize(),
         });
 
-      this.thumbGradientPositions.set(thumbGradientPositions);
-      this.thumbSize.set(thumbSize);
+      if (isVertical) {
+        this.thumbGradientPositionsVertical.set(thumbGradientPositions);
+        this.thumbSizeVertical.set(thumbSize);
+      } else {
+        this.thumbGradientPositionsHorizontal.set(thumbGradientPositions);
+        this.thumbSizeHorizontal.set(thumbSize);
+      }
       const actualThumbPosition = thumbPosition < startOffset ? startOffset : thumbPosition;
       if (update) {
         (isVertical ? this.scrollBarVertical : this.scrollBarHorizontal)?.scroll({
@@ -443,7 +458,7 @@ export class NgScrollerComponent extends NgScrollView {
 
     this.stopScrollbar(false);
 
-    this._isScrollbarUserAction = false;
+    this._isScrollbarUserActionX = false;
 
     this.updateScrollBar(false);
   }
@@ -453,7 +468,7 @@ export class NgScrollerComponent extends NgScrollView {
 
     this.stopScrollbar(true);
 
-    this._isScrollbarUserAction = false;
+    this._isScrollbarUserActionY = false;
 
     this.updateScrollBar(true);
   }
@@ -514,7 +529,7 @@ export class NgScrollerComponent extends NgScrollView {
   scrollTo(params: IScrollToParams): number {
     const userAction = params?.userAction ?? true;
     if (userAction) {
-      this._isScrollbarUserAction = false;
+      this._isScrollbarUserActionX = this._isScrollbarUserActionY = false;
       this.scrollBarHorizontal?.stopScrolling();
       this.scrollBarVertical?.stopScrolling();
     }
@@ -552,7 +567,11 @@ export class NgScrollerComponent extends NgScrollView {
 
   onScrollBarDragHandler(event: IScrollBarDragEvent) {
     const { position, isVertical, min, max, userAction } = event;
-    this._isScrollbarUserAction = userAction;
+    if (isVertical) {
+      this._isScrollbarUserActionY = userAction;
+    } else {
+      this._isScrollbarUserActionX = userAction;
+    }
     if (!userAction) {
       return;
     }
@@ -575,18 +594,30 @@ export class NgScrollerComponent extends NgScrollView {
 
   protected onScrollBarDragEndHandler(event: IScrollBarDragEvent) {
     const { position, min, max, isVertical, userAction } = event;
-    this._isScrollbarUserAction = userAction;
+    if (isVertical) {
+      this._isScrollbarUserActionY = userAction;
+    } else {
+      this._isScrollbarUserActionX = userAction;
+    }
     if (!userAction) {
       return;
     }
-    this._isScrollbarUserAction = false;
+    if (isVertical) {
+      this._isScrollbarUserActionY = false;
+    } else {
+      this._isScrollbarUserActionX = false;
+    }
     this.dropVelocity();
     this._service.update(false);
     const isEdge = this.fireUpdateIfEdgesDetected(isVertical, position, min, max, true, true);
     if (!isEdge) {
       this.alignPosition();
     }
-    (isVertical ? this._scrollDirectionY : this._scrollDirectionX).clear();
+    if (isVertical) {
+      this._scrollDirectionY.clear();
+    } else {
+      this._scrollDirectionX.clear();
+    }
     this._$scrollbarScroll.next(true);
     this.fireScrollEvent(true);
   }
