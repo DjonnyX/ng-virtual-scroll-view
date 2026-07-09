@@ -6,7 +6,7 @@ import { NgScrollView, SCROLL_VIEW_INVERSION } from '../ng-scroll-view';
 import { IScrollBarDragEvent, IScrollBarTemplateContext } from './interfaces';
 import {
   DEFAULT_LANG_TEXT_DIR, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SCROLLBAR_INTERACTIVE, LEFT, POSITION, POSITION_ABSOLUTE,
-  POSITION_RELATIVE, RIGHT, SIZE_100_PERSENT, SIZE_AUTO, UNSET,
+  POSITION_RELATIVE, RIGHT, SIZE_100_PERSENT, SIZE_AUTO, TOP, UNSET, BOTTOM, ZERO_PX,
 } from '../../const';
 import {
   DEFAULT_SIZE, DEFAULT_THICKNESS, HEIGHT, NONE, OPACITY, OPACITY_0, OPACITY_1, PX, TRANSITION, TRANSITION_FADE_IN, WIDTH,
@@ -234,11 +234,19 @@ export class NgScrollBarComponent extends NgScrollView {
     effect(() => {
       const el = this._elementRef.nativeElement;
       if (!!el) {
-        const overlapping = this.overlapping(), langTextDir = this.langTextDir();
+        const overlapping = this.overlapping(), langTextDir = this.langTextDir(), isVertical = this.isVertical();
         el.style[POSITION] = overlapping ? POSITION_ABSOLUTE : POSITION_RELATIVE;
-        el.style[LEFT] = overlapping && langTextDir === TextDirections.RTL ? '0' : UNSET;
-        el.style[RIGHT] = overlapping && langTextDir === TextDirections.LTR ? '0' : UNSET;
-        el.style[WIDTH] = overlapping ? SIZE_AUTO : SIZE_100_PERSENT;
+        el.style[LEFT] = overlapping && langTextDir === TextDirections.RTL ? ZERO_PX : UNSET;
+        el.style[RIGHT] = overlapping && langTextDir === TextDirections.LTR ? ZERO_PX : UNSET;
+        if (isVertical) {
+          el.style[TOP] = ZERO_PX;
+          el.style[WIDTH] = overlapping ? SIZE_AUTO : SIZE_100_PERSENT;
+          el.style[BOTTOM] = UNSET;
+        } else {
+          el.style[TOP] = UNSET;
+          el.style[BOTTOM] = ZERO_PX;
+          el.style[HEIGHT] = overlapping ? SIZE_AUTO : SIZE_100_PERSENT;
+        }
       }
     });
 

@@ -12,26 +12,8 @@
     height: 100%;
     cursor: grab;
 
-    &.overlapping {
-        position: relative;
-        display: block;
-    }
-
     &.grabbing {
         cursor: grabbing;
-    }
-
-    &.overlapping {
-
-        &.both,
-        &.horizontal {
-            grid-template-rows: 1fr 0;
-        }
-
-        &.both,
-        &.vertical {
-            grid-template-columns: 1fr 0;
-        }
     }
 
     transition: grid-template-rows 100ms ease-out,
@@ -39,10 +21,14 @@
 
     &.scrollableX {
         &.enabled {
-            &:not(.overlapping) {
 
-                &.both,
-                &.horizontal {
+            &.both,
+            &.horizontal {
+                &:not(.overlapping) {
+                    grid-template-rows: 1fr auto;
+                }
+
+                &.overlapping {
                     grid-template-rows: 1fr auto;
                 }
             }
@@ -51,11 +37,15 @@
 
     &.scrollableY {
         &.enabled {
-            &:not(.overlapping) {
 
-                &.both,
-                &.vertical {
+            &.both,
+            &.vertical {
+                &:not(.overlapping) {
                     grid-template-columns: 1fr auto;
+                }
+
+                &.overlapping {
+                    grid-template-columns: 1fr 0;
                 }
             }
         }
