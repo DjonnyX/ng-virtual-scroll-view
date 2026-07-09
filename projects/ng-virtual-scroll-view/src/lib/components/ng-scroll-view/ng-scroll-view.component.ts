@@ -576,8 +576,8 @@ export class NgScrollView extends BaseScrollView {
                                         this.grabbing.set(false);
                                         if (!this.snapIfNecessary(v0X, v0Y, false) && this.scrollBehavior() !== BEHAVIOR_INSTANT) {
                                             this.moveWithAcceleration(
-                                                positionX, 0, a0X, timestampX,
-                                                positionY, 0, a0Y, timestampY,
+                                                positionX, v0X, a0X, timestampX,
+                                                positionY, v0Y, a0Y, timestampY,
                                             );
                                         } else {
                                             this.snapIfNecessary(v0X, v0Y);
