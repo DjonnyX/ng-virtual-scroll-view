@@ -1,11 +1,8 @@
-import { Component, viewChild } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { delay, interval, tap } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
-  NgVirtualScrollViewModule, NgVirtualScrollViewComponent, ISize, Id,
-  IScrollingSettings,
+  NgVirtualScrollViewModule, ISize, Id, IScrollingSettings,
 } from '../../projects/ng-virtual-scroll-view/src/public-api';
 import { LOGO } from './const';
 import { GradientColor, RoundedCorner } from './components/interfaces';
