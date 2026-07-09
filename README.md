@@ -1,4 +1,4 @@
-# NgVirtualList
+# NgVirtualScrollView
 
 🚀 High-performance virtual scroll view for Angular apps. Smooth, customizable, and developer-friendly.
 
@@ -103,11 +103,11 @@ Outputs
 To correctly handle interactive elements within a list, such as buttons, you need to use the VirtualClick directive.
 
 ```ts
-import { NgVirtualListModule, VirtualClickModule } from 'ng-virtual-scroll-view';
+import { NgVirtualScrollViewModule, VirtualClickModule } from 'ng-virtual-scroll-view';
 
 @Component({
   selector: 'example',
-  imports: [NgVirtualListModule, VirtualClickModule],
+  imports: [NgVirtualScrollViewModule, VirtualClickModule],
 })
 ```
 

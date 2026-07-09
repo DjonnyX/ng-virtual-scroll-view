@@ -10,4 +10,4 @@ import { NgScrollerModule } from './components/ng-scroller/ng-scroller.module';
   imports: [CommonModule, NgScrollerModule, LocaleSensitiveModule],
   schemas: [NO_ERRORS_SCHEMA],
 })
-export class NgVirtualListModule { }
+export class NgVirtualScrollViewModule { }

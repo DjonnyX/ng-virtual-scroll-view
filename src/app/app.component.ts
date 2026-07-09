@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { delay, interval, tap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
-  NgVirtualListModule, NgVirtualScrollViewComponent, ISize, Id,
+  NgVirtualScrollViewModule, NgVirtualScrollViewComponent, ISize, Id,
   IScrollingSettings,
 } from '../../projects/ng-virtual-scroll-view/src/public-api';
 import { LOGO } from './const';
@@ -41,7 +41,7 @@ const generateItems = (len: number = MAX_ITEMS) => {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, NgVirtualListModule, CustomScrollbarModule],
+  imports: [CommonModule, FormsModule, NgVirtualScrollViewModule, CustomScrollbarModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
