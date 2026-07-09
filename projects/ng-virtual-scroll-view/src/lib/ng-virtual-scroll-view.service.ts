@@ -86,7 +86,6 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
     if (this.grabbing === v) {
       return;
     }
-
     this._$grabbing.next(v);
   }
 

@@ -10,12 +10,12 @@
   <div class="vl-section">
     <div class="vl-section__container">
       <h2>Virtual scroll view (both directions)</h2>
-      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="both"
+      <ng-virtual-scroll-view #scrollView1 class="scroll-view" direction="both"
         [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
         [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6"
         (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
         <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
-          [class.grabbing]="scrollView.$grabbing | async"></div>
+          [class.grabbing]="scrollView1.$grabbing | async"></div>
       </ng-virtual-scroll-view>
     </div>
   </div>
@@ -23,12 +23,12 @@
   <div class="vl-section">
     <div class="vl-section__container">
       <h2>Virtual scroll view (vertical)</h2>
-      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="vertical"
+      <ng-virtual-scroll-view #scrollView2 class="scroll-view" direction="vertical"
         [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
         [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6" [overlappingScrollbar]="true"
         (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
         <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
-          [class.grabbing]="scrollView.$grabbing | async"></div>
+          [class.grabbing]="scrollView2.$grabbing | async"></div>
       </ng-virtual-scroll-view>
     </div>
   </div>
@@ -36,12 +36,12 @@
   <div class="vl-section">
     <div class="vl-section__container">
       <h2>Virtual scroll view (horizontal)</h2>
-      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="horizontal"
+      <ng-virtual-scroll-view #scrollView3 class="scroll-view" direction="horizontal"
         [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
         [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6" [overlappingScrollbar]="true"
         (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
         <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
-          [class.grabbing]="scrollView.$grabbing | async"></div>
+          [class.grabbing]="scrollView3.$grabbing | async"></div>
       </ng-virtual-scroll-view>
     </div>
   </div>
