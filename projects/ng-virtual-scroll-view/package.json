@@ -1,0 +1,30 @@
+{
+  "name": "ng-virtual-scroll-view",
+  "version": "20.12.4-beta-1",
+  "author": {
+    "name": "Evgenii Alexandrovich Grebennikov",
+    "email": "djonnyx@gmail.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/DjonnyX/ng-virtual-scroll-view/tree/20.x/projects/ng-virtual-scroll-view",
+  "keywords": [
+    "ng",
+    "angular",
+    "virtual",
+    "virtualized",
+    "scroller",
+    "scroll",
+    "view",
+    "scrollview",
+    "scroll-view"
+  ],
+  "peerDependencies": {
+    "@angular/cdk": "^20.0.4",
+    "@angular/common": "^20.0.4",
+    "@angular/core": "^20.0.4"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": false
+}

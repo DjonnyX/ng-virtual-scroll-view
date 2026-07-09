@@ -1,0 +1,1848 @@
+import {
+  ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input,
+  OnDestroy, output, Signal, signal, TemplateRef, viewChild, ViewEncapsulation,
+} from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import {
+  BehaviorSubject, combineLatest, debounceTime, distinctUntilChanged, filter, map, skip, Subject, switchMap, take, tap,
+} from 'rxjs';
+import {
+  BEHAVIOR_INSTANT, CLASS_SCROLL_VIEW_HORIZONTAL, CLASS_SCROLL_VIEW_VERTICAL, DEFAULT_DIRECTION, DEFAULT_LIST_SIZE, LEFT_PROP_NAME,
+  TOP_PROP_NAME, MIN_PIXELS_FOR_PREVENT_SNAPPING, DEFAULT_LANG_TEXT_DIR, DEFAULT_CLICK_DISTANCE, DEFAULT_SCROLLBAR_THICKNESS,
+  DEFAULT_SCROLLBAR_MIN_SIZE, BEHAVIOR_AUTO, DEFAULT_SCROLLBAR_ENABLED, DEFAULT_SCROLLBAR_INTERACTIVE, DEFAULT_OVERSCROLL_ENABLED,
+  DEFAULT_ANIMATION_PARAMS, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLING_SETTINGS, DEFAULT_SNAP_TO_ITEM, DEFAULT_SNAP_TO_ITEM_ALIGN,
+  DEFAULT_MOTION_BLUR, DEFAULT_MAX_MOTION_BLUR, DEFAULT_SCROLLING_ONE_BY_ONE, DEFAULT_MOTION_BLUR_ENABLED, DEFAULT_SNAPPING_DISTANCE,
+  DEFAULT_ALIGNMENT, DEFAULT_SPREADING_MODE, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SNAP_SCROLLTO_LEFT, DEFAULT_SNAP_SCROLLTO_TOP,
+  DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH,
+} from './const';
+import {
+  IScrollEvent, IAnimationParams, ISize, IScrollingSettings,
+} from './interfaces';
+import {
+  Alignment, ArithmeticExpression, Id, SnappingDistance, Direction, SnapToItemAlign, TextDirection,
+  SpreadingMode,
+} from './types';
+import {
+  Alignments, Directions, SpreadingModes,
+} from './enums';
+import { ScrollEvent, toggleClassName } from './utils';
+import { isDirection } from './utils/is-direction';
+import { NgVirtualScrollViewService } from './ng-virtual-scroll-view.service';
+import {
+  validateBoolean, validateFloat, validateInt, validateObject, validateString,
+} from './utils/validation';
+import { objectAsReadonly } from './utils/object';
+import { NgScrollerComponent } from './components/ng-scroller/ng-scroller.component';
+import { IScrollToParams } from './components/ng-scroll-view';
+import { IScrollParams } from './interfaces';
+import { isPercentageValue } from './utils/is-persentage-value';
+import { parseArithmeticExpression } from './utils/parse-arithmetic-expression';
+import { isSpreadingMode } from './utils/is-spreading-mode';
+import { SCROLL_VIEW_SERVICE } from './components/ng-scroll-view/const';
+
+/**
+ * Virtual list component.
+ * Maximum performance for extremely large lists.
+ * It is based on algorithms for virtualization of screen objects.
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.component.ts
+ * @author Evgenii Alexandrovich Grebennikov
+ * @email djonnyx@gmail.com
+ */
+@Component({
+  selector: 'ng-virtual-scroll-view',
+  templateUrl: './ng-virtual-scroll-view.component.html',
+  styleUrl: './ng-virtual-scroll-view.component.scss',
+  host: {
+    'style': 'position: relative;'
+  },
+  standalone: false,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom,
+  providers: [
+    { provide: SCROLL_VIEW_SERVICE, useClass: NgVirtualScrollViewService },
+  ],
+})
+export class NgVirtualScrollViewComponent implements OnDestroy {
+  private static __nextId: number = 0;
+
+  private _id: number = NgVirtualScrollViewComponent.__nextId;
+
+  /**
+   * Readonly. Returns the unique identifier of the component.
+   */
+  get id() { return this._id; }
+
+  private _service = inject(SCROLL_VIEW_SERVICE);
+
+  private _scrollerComponent = viewChild<NgScrollerComponent>('scroller');
+
+  private _scroller: Signal<ElementRef<HTMLDivElement> | undefined>;
+
+  /**
+   * Fires when the list has been scrolled.
+   */
+  onScroll = output<IScrollEvent>();
+
+  /**
+   * Fires when the list has completed scrolling.
+   */
+  onScrollEnd = output<IScrollEvent>();
+
+  /**
+   * Fires when the viewport size is changed.
+   */
+  onViewportChange = output<ISize>();
+
+  /**
+   * Emit the component ID when an element crosses the alignment line specified by the snapToItemAlign property.
+   */
+  onSnapItem = output<Id>();
+
+  /**
+   * Fires when the scroll reaches the left.
+   */
+  onScrollReachLeft = output<void>();
+
+  /**
+   * Fires when the scroll reaches the right.
+   */
+  onScrollReachRight = output<void>();
+
+  /**
+   * Fires when the scroll reaches the top.
+   */
+  onScrollReachTop = output<void>();
+
+  /**
+   * Fires when the scroll reaches the bottom.
+   */
+  onScrollReachBottom = output<void>();
+
+  private _$show = new BehaviorSubject<boolean>(false);
+  readonly $show = this._$show.asObservable();
+
+  private _$initialized = new BehaviorSubject<boolean>(false);
+  readonly $initialized = this._$initialized.asObservable();
+
+  private _scrollbarThickness = {
+    transform: (v: number) => {
+      const valid = validateInt(v);
+
+      if (!valid) {
+        console.error('The "scrollbarThickness" parameter must be of type `number`.');
+        return DEFAULT_SCROLLBAR_THICKNESS;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Scrollbar thickness.
+   */
+  scrollbarThickness = input<number>(DEFAULT_SCROLLBAR_THICKNESS, { ...this._scrollbarThickness });
+
+  private _scrollbarMinSize = {
+    transform: (v: number) => {
+      const valid = validateInt(v);
+
+      if (!valid) {
+        console.error('The "scrollbarMinSize" parameter must be of type `number`.');
+        return DEFAULT_SCROLLBAR_MIN_SIZE;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Minimum scrollbar size.
+   */
+  scrollbarMinSize = input<number>(DEFAULT_SCROLLBAR_MIN_SIZE, { ...this._scrollbarMinSize });
+
+  private _scrollbarThumbRenderer = {
+    transform: (v: TemplateRef<any> | null) => {
+      const valid = validateObject(v, true, true);
+
+      if (!valid) {
+        console.error('The "scrollbarThumbRenderer" parameter must be of type `object`.');
+        return null;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Scrollbar customization template.
+   */
+  scrollbarThumbRenderer = input<TemplateRef<any> | null>(null, { ...this._scrollbarThumbRenderer });
+
+  private _scrollbarThumbParams = {
+    transform: (v: { [propName: string]: any } | null) => {
+      const valid = validateObject(v, true, true);
+
+      if (!valid) {
+        console.error('The "scrollbarThumbParams" parameter must be of type `object`.');
+        return null;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Additional options for the scrollbar.
+   */
+  scrollbarThumbParams = input<{ [propName: string]: any } | null>({}, { ...this._scrollbarThumbParams });
+
+  private _clickDistance = {
+    transform: (v: number) => {
+      const valid = validateInt(v);
+
+      if (!valid) {
+        console.error('The "clickDistance" parameter must be of type `number`.');
+        return DEFAULT_CLICK_DISTANCE;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * The maximum scroll distance at which a click event is triggered.
+   */
+  clickDistance = input<number>(DEFAULT_CLICK_DISTANCE, { ...this._clickDistance });
+
+  private _scrollLeftOffsetOptions = {
+    transform: (v: number) => {
+      const valid = validateFloat(v, true) || isPercentageValue(v);
+
+      if (!valid) {
+        console.error('The "scrollLeftOffset" parameter must be one of type `number` or `string`.');
+        return 0;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Sets the scroll left offset value. Can be specified in absolute or percentage values.
+   * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
+   */
+  scrollLeftOffset = input<ArithmeticExpression>(0, { ...this._scrollLeftOffsetOptions });
+
+  private _scrollTopOffsetOptions = {
+    transform: (v: number) => {
+      const valid = validateFloat(v, true) || isPercentageValue(v);
+
+      if (!valid) {
+        console.error('The "scrollTopOffset" parameter must be one of type `number` or `string`.');
+        return 0;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Sets the scroll top offset value. Can be specified in absolute or percentage values.
+   * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
+   */
+  scrollTopOffset = input<ArithmeticExpression>(0, { ...this._scrollTopOffsetOptions });
+
+  private _scrollRightOffsetOptions = {
+    transform: (v: number) => {
+      const valid = validateFloat(v, true) || isPercentageValue(v);
+
+      if (!valid) {
+        console.error('The "scrollRightOffset" parameter must be one of type `number` or `string`.');
+        return 0;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Sets the scroll right offset value. Can be specified in absolute or percentage values.
+   * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
+   */
+  scrollRightOffset = input<ArithmeticExpression>(0, { ...this._scrollRightOffsetOptions });
+
+  private _scrollBottomOffsetOptions = {
+    transform: (v: number) => {
+      const valid = validateFloat(v, true) || isPercentageValue(v);
+
+      if (!valid) {
+        console.error('The "scrollBottomOffset" parameter must be one of type `number` or `string`.');
+        return 0;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Sets the scroll bottom offset value. Can be specified in absolute or percentage values.
+   * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
+   */
+  scrollBottomOffset = input<ArithmeticExpression>(0, { ...this._scrollBottomOffsetOptions });
+
+  private _snapScrollToLeftOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "snapScrollToLeft" parameter must be of type `boolean`.');
+        return DEFAULT_SNAP_SCROLLTO_LEFT;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the scrollbar is snapped to the left of the scroller. The default value is "true".
+   * That is, if snapScrollToLeft and snapScrollToRight are enabled, the scroller will initially snap
+   * to the left; if you move the scrollbar right, the scroller will snap to the right.
+   * If snapScrollToLeft is disabled and snapScrollToRight is enabled, the scroller will snap to the right;
+   * If you move the scrollbar left, the scroller will snap to the left.
+   * If both snapScrollToLeft and snapScrollToRight are disabled, the scroller will never snap to the left or right.
+   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToRight` property is automatically disabled because the list has no beginning or end.
+   */
+  snapScrollToLeft = input<boolean>(DEFAULT_SNAP_SCROLLTO_LEFT, { ...this._snapScrollToLeftOptions });
+
+  private _snapScrollToTopOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "snapScrollToTop" parameter must be of type `boolean`.');
+        return DEFAULT_SNAP_SCROLLTO_TOP;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the scrollbar is snapped to the top of the scroller. The default value is "true".
+   * That is, if snapScrollToTop and snapScrollToBottom are enabled, the scroller will initially snap
+   * to the top; if you move the scrollbar down, the scroller will snap to the bottom.
+   * If snapScrollToTop is disabled and snapScrollToBottom is enabled, the scroller will snap to the bottom;
+   * If you move the scrollbar up, the scroller will snap to the top.
+   * If both snapScrollToTop and snapScrollToBottom are disabled, the scroller will never snap to the top or bottom.
+   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
+   */
+  snapScrollToTop = input<boolean>(DEFAULT_SNAP_SCROLLTO_TOP, { ...this._snapScrollToTopOptions });
+
+  private _snapScrollToRightOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "snapScrollToRight" parameter must be of type `boolean`.');
+        return DEFAULT_SNAP_SCROLLTO_RIGHT;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the scrollbar is snapped to the right of the scroller. The default value is "true".
+   * That is, if snapScrollToLeft and snapScrollToRight are enabled, the scroller will initially snap
+   * to the left; if you move the scrollbar right, the scroller will snap to the right.
+   * If snapScrollToLeft is disabled and snapScrollToRight is enabled, the scroller will snap to the right;
+   * If you move the scrollbar left, the scroller will snap to the left.
+   * If both snapScrollToLeft and snapScrollToRight are disabled, the scroller will never snap to the left or right.
+   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToRight` property is automatically disabled because the list has no beginning or end.
+   */
+  snapScrollToRight = input<boolean>(DEFAULT_SNAP_SCROLLTO_RIGHT, { ...this._snapScrollToRightOptions });
+
+  private _snapScrollToBottomOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "snapScrollToBottom" parameter must be of type `boolean`.');
+        return DEFAULT_SNAP_SCROLLTO_BOTTOM;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the scrollbar is snapped to the bottom of the scroller. The default value is "true".
+   * That is, if snapScrollToTop and snapScrollToBottom are enabled, the scroller will initially snap
+   * to the top; if you move the scrollbar down, the scroller will snap to the bottom.
+   * If snapScrollToTop is disabled and snapScrollToBottom is enabled, the scroller will snap to the bottom;
+   * If you move the scrollbar up, the scroller will snap to the top.
+   * If both snapScrollToTop and snapScrollToBottom are disabled, the scroller will never snap to the top or bottom.
+   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
+   */
+  snapScrollToBottom = input<boolean>(DEFAULT_SNAP_SCROLLTO_BOTTOM, { ...this._snapScrollToBottomOptions });
+
+  private _scrollbarEnabledOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "scrollbarEnabled" parameter must be of type `boolean`.');
+        return DEFAULT_SCROLLBAR_ENABLED;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the scrollbar is shown or not. The default value is "true".
+   */
+  scrollbarEnabled = input<boolean>(DEFAULT_SCROLLBAR_ENABLED, { ...this._scrollbarEnabledOptions });
+
+  private _scrollbarInteractiveOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "scrollbarInteractive" parameter must be of type `boolean`.');
+        return DEFAULT_SCROLLBAR_INTERACTIVE;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether scrolling using the scrollbar will be possible. The default value is "true".
+   */
+  scrollbarInteractive = input<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE, { ...this._scrollbarInteractiveOptions });
+
+  private _overlappingScrollbarOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "overlappingScrollbar" parameter must be of type `boolean`.');
+        return DEFAULT_OVERLAPPING_SCROLLBAR;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the scroll bar will overlap the list. The default value is "false".
+   */
+  overlappingScrollbar = input<boolean>(DEFAULT_OVERLAPPING_SCROLLBAR, { ...this._overlappingScrollbarOptions });
+
+  private _scrollBehaviorOptions = {
+    transform: (v: ScrollBehavior) => {
+      const valid = validateString(v, true, true);
+
+      if (!valid) {
+        console.error('The "scrollBehavior" parameter must be of type `boolean`.');
+        return DEFAULT_SCROLL_BEHAVIOR;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Defines the scrolling behavior for any element on the page. The default value is "smooth".
+   */
+  scrollBehavior = input<ScrollBehavior>(DEFAULT_SCROLL_BEHAVIOR, { ...this._scrollBehaviorOptions });
+
+  private _scrollingSettingsOptions = {
+    transform: (v: IScrollingSettings): IScrollingSettings | null => {
+      let valid = validateObject(v, true, true);
+      if (valid && !!v) {
+        const { frictionalForce, mass, maxDistance, maxDuration, speedScale, optimization } = v;
+        valid = validateFloat(frictionalForce, true);
+        if (!valid) {
+          console.error('The "frictionalForce" parameter must be of type `number` or `undefined`.');
+          return DEFAULT_SCROLLING_SETTINGS;
+        }
+        valid = validateFloat(mass, true);
+        if (!valid) {
+          console.error('The "mass" parameter must be of type `number` or `undefined`.');
+          return DEFAULT_SCROLLING_SETTINGS;
+        }
+        valid = validateFloat(maxDistance, true);
+        if (!valid) {
+          console.error('The "maxDistance" parameter must be of type `number` or `undefined`.');
+          return DEFAULT_SCROLLING_SETTINGS;
+        }
+        valid = validateFloat(maxDuration, true);
+        if (!valid) {
+          console.error('The "maxDuration" parameter must be of type `number` or `undefined`.');
+          return DEFAULT_SCROLLING_SETTINGS;
+        }
+        valid = validateFloat(speedScale, true);
+        if (!valid) {
+          console.error('The "speedScale" parameter must be of type `number` or `undefined`.');
+          return DEFAULT_SCROLLING_SETTINGS;
+        }
+        valid = validateBoolean(optimization, true);
+        if (!valid) {
+          console.error('The "optimization" parameter must be of type `boolean` or `undefined`.');
+          return DEFAULT_SCROLLING_SETTINGS;
+        }
+      }
+      if (!valid) {
+        console.error('The "scrollingSettings" parameter must be of type `object` or null.');
+        return DEFAULT_SCROLLING_SETTINGS;
+      }
+      return {
+        frictionalForce: v.frictionalForce !== undefined && v.frictionalForce > 0 ? v.frictionalForce : DEFAULT_SCROLLING_SETTINGS.frictionalForce,
+        mass: v.mass !== undefined && v.mass > 0 ? v.mass : DEFAULT_SCROLLING_SETTINGS.mass,
+        maxDistance: v.maxDistance !== undefined && v.maxDistance > 0 ? v.maxDistance : DEFAULT_SCROLLING_SETTINGS.maxDistance,
+        maxDuration: v.maxDuration !== undefined && v.maxDuration > 0 ? v.maxDuration : DEFAULT_SCROLLING_SETTINGS.maxDuration,
+        speedScale: v.speedScale !== undefined && v.speedScale > 0 ? v.speedScale : DEFAULT_SCROLLING_SETTINGS.speedScale,
+        optimization: v.optimization ?? DEFAULT_SCROLLING_SETTINGS.optimization,
+      };
+    },
+  } as any;
+
+  /**
+   * Scrolling settings.
+   * - frictionalForce - Frictional force. Default value is 0.035.
+   * - mass - Mass. Default value is 0.005.
+   * - maxDistance - Maximum scrolling distance. Default value is 100000.
+   * - maxDuration - Maximum animation duration. Default value is 4000.
+   * - speedScale - Speed scale. Default value is 10.
+   * - optimization - Enables scrolling performance optimization. Default value is `true`.
+   */
+  scrollingSettings = input<IScrollingSettings>(DEFAULT_SCROLLING_SETTINGS, { ...this._scrollingSettingsOptions });
+
+  private _snapToItemOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v);
+
+      if (!valid) {
+        console.error('The "snapToItem" parameter must be of type `boolean`.');
+        return DEFAULT_SNAP_TO_ITEM;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Snap to an item. The default value is `false`.
+   */
+  snapToItem = input<boolean>(DEFAULT_SNAP_TO_ITEM, { ...this._snapToItemOptions });
+
+  private _snapToItemAlignOptions = {
+    transform: (v: SnapToItemAlign) => {
+      const valid = validateString(v) && (v === 'start' || v === 'center' || v === 'end');
+
+      if (!valid) {
+        console.error('The "snapToItemAlign" parameter must be one of `start`, `center` or `end`.');
+        return DEFAULT_SNAP_TO_ITEM_ALIGN;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Alignment for snapToItem. Available values ​​are `start`, `center`, and `end`. The default value is `center`.
+   */
+  snapToItemAlign = input<SnapToItemAlign>(DEFAULT_SNAP_TO_ITEM_ALIGN, { ...this._snapToItemAlignOptions });
+
+  private _snappingDistanceOptions = {
+    transform: (v: SnappingDistance | any) => {
+      const valid = validateString(v) || validateFloat(v);
+
+      if (!valid) {
+        console.error('The "snappingDistance" parameter must be of type `number` or `string`.');
+        return DEFAULT_SNAPPING_DISTANCE;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Snapping activation distance. Can be specified as a percentage of the element size or in absolute values.
+   * The default value is `25%`.
+   */
+  snappingDistance = input<SnappingDistance>(DEFAULT_SNAPPING_DISTANCE, { ...this._snappingDistanceOptions });
+
+  private _scrollingOneByOneOptions = {
+    transform: (v: any) => {
+      const valid = validateBoolean(v);
+
+      if (!valid) {
+        console.error('The "scrollingOneByOne" parameter must be of type `boolean`.');
+        return DEFAULT_SCROLLING_ONE_BY_ONE;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Specifies whether to scroll one item at a time if true and the scrollToItem property is set. The default value is `false`.
+   */
+  scrollingOneByOne = input<boolean>(DEFAULT_SCROLLING_ONE_BY_ONE, { ...this._scrollingOneByOneOptions });
+
+  private _alignmentOptions = {
+    transform: (v: Alignment) => {
+      const valid = validateString(v) && (v === 'none' || v === 'center');
+
+      if (!valid) {
+        console.error('The "alignment" parameter must be one of `none` or `centert`.');
+        return DEFAULT_ALIGNMENT;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines the alignment of the list. Two modes are available: `none` and `center`. The `center` mode aligns the list items to the center of the viewport, ideal for use with the `itemTransform` property.
+   * The `none` mode means no alignment. The default value is `none`.
+   */
+  alignment = input<Alignment>(DEFAULT_ALIGNMENT, { ...this._alignmentOptions });
+
+  private _spreadingModeOptions = {
+    transform: (v: SpreadingMode) => {
+      const valid = validateString(v) && (v === 'normal' || v === 'infinity');
+
+      if (!valid) {
+        console.error('The "spreadingMode" parameter must be one of `normal` or `infinity`.');
+        return DEFAULT_SPREADING_MODE;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * The order of list elements. Available values ​​are `standard` and `infinity`.
+   * `normal` — list elements are ordered according to the collection sequence.
+   * `infinity` — list elements are ordered cyclically, forming an infinite list.
+   * When set to `infinity`, the `alignment` property is forced to the value `Alignments.CENTER`, the `scrollbarEnabled` property is forced to the `false`
+   * The default value is `standard`.
+   */
+  spreadingMode = input<SpreadingMode>(DEFAULT_SPREADING_MODE, { ...this._spreadingModeOptions });
+
+  private _motionBlurOptions = {
+    transform: (v: number) => {
+      const valid = validateFloat(v);
+
+      if (!valid) {
+        console.error('The "motionBlur" parameter must be of type `number`.');
+        return DEFAULT_MOTION_BLUR;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Motion blur effect. The default value is `0.15`.
+   */
+  motionBlur = input<number>(DEFAULT_MOTION_BLUR, { ...this._motionBlurOptions });
+
+  private _maxMotionBlurOptions = {
+    transform: (v: number) => {
+      const valid = validateFloat(v);
+
+      if (!valid) {
+        console.error('The "maxMotionBlur" parameter must be of type `number`.');
+        return DEFAULT_MAX_MOTION_BLUR;
+      }
+      return v <= 0 ? DEFAULT_MAX_MOTION_BLUR : v;
+    },
+  } as any;
+
+  /**
+   * Maximum motion blur effect. The default value is `0.5`.
+   */
+  maxMotionBlur = input<number>(DEFAULT_MAX_MOTION_BLUR, { ...this._maxMotionBlurOptions });
+
+  private _motionBlurEnabledOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v);
+
+      if (!valid) {
+        console.error('The "motionBlurEnabled" parameter must be of type `boolean`.');
+        return DEFAULT_MOTION_BLUR_ENABLED;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether to apply motion blur or not. The default value is `false`.
+   */
+  motionBlurEnabled = input<boolean>(DEFAULT_MOTION_BLUR_ENABLED, { ...this._motionBlurEnabledOptions });
+
+  private _animationParamsOptions = {
+    transform: (v: IAnimationParams) => {
+      const valid = validateObject(v, true, true);
+
+      if (!validateFloat(v.scrollToItem)) {
+        console.error('The "scrollToItem" parameter must be of type `number`.');
+        return DEFAULT_ANIMATION_PARAMS;
+      }
+      if (!validateFloat(v.snapToItem)) {
+        console.error('The "snapToItem" parameter must be of type `number`.');
+        return DEFAULT_ANIMATION_PARAMS;
+      }
+      if (!validateFloat(v.navigateToItem)) {
+        console.error('The "navigateToItem" parameter must be of type `number`.');
+        return DEFAULT_ANIMATION_PARAMS;
+      }
+      if (!valid) {
+        console.error('The "animationParams" parameter must be of type `object`.');
+        return DEFAULT_ANIMATION_PARAMS;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Animation parameters. The default value is "{ scrollToItem: 150, snapToItem: 150, navigateToItem: 150, navigateByKeyboard: 50 }".
+   */
+  animationParams = input<IAnimationParams>(DEFAULT_ANIMATION_PARAMS, { ...this._animationParamsOptions });
+
+  private _overscrollEnabledOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "overscrollEnabled" parameter must be of type `boolean`.');
+        return DEFAULT_OVERSCROLL_ENABLED;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether the overscroll (re-scroll) feature will work. The default value is "true".
+   */
+  overscrollEnabled = input<boolean>(DEFAULT_OVERSCROLL_ENABLED, { ...this._overscrollEnabledOptions });
+
+  private _directionOptions = {
+    transform: (v: Direction) => {
+      const valid = validateString(v) && (v === 'horizontal' || v === 'vertical' || v === 'both');
+      if (!valid) {
+        console.error('The "direction" parameter must be one of `horizontal`, `vertical` or `both`.');
+        return DEFAULT_DIRECTION;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines the direction in which elements are placed. Default value is "both".
+   */
+  direction = input<Direction>(DEFAULT_DIRECTION, { ...this._directionOptions });
+
+  private _loading = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v);
+
+      if (!valid) {
+        console.error('The "loading" parameter must be of type `boolean`.');
+        return false;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * If `true`, the scrollBar goes into loading state. The default value is `false`.
+   */
+  loading = input<boolean>(false, { ...this._loading });
+
+  private _langTextDir = {
+    transform: (v: TextDirection) => {
+      const valid = validateString(v);
+      if (!valid) {
+        console.error('The "langTextDir" parameter must be of type `string`.');
+        return DEFAULT_LANG_TEXT_DIR;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * A string indicating the direction of text for the locale.
+   * Can be either "ltr" (left-to-right) or "rtl" (right-to-left).
+   */
+  langTextDir = input<TextDirection>(DEFAULT_LANG_TEXT_DIR, { ...this._langTextDir });
+
+  protected _isInfinity: Signal<boolean>;
+
+  protected readonly focusedElement = signal<Id | null>(null);
+
+  protected readonly classes = signal<{ [cName: string]: boolean }>({ prepared: true });
+
+  private _bounds = signal<ISize | null>(null);
+  protected get bounds() { return this._bounds; }
+
+  protected _actualScrollbarEnabled: Signal<boolean>;
+
+  private _actualAlignment: Signal<Alignment>;
+  protected get actualAlignment() { return this._actualAlignment; }
+
+  private _scrollerBounds = signal<ISize | null>(null);
+
+  private _$scrollSizeX = new BehaviorSubject<number>(0);
+
+  private _$scrollSizeY = new BehaviorSubject<number>(0);
+
+  private _isScrollLeft = signal<boolean>(true);
+
+  private _isScrollRight = signal<boolean>(false);
+
+  private _isScrollTop = signal<boolean>(true);
+
+  private _isScrollBottom = signal<boolean>(false);
+
+  protected _precalculatedScrollLeftOffset = signal<number>(0);
+
+  protected _precalculatedScrollTopOffset = signal<number>(0);
+
+  protected _precalculatedScrollRightOffset = signal<number>(0);
+
+  protected _precalculatedScrollBottomOffset = signal<number>(0);
+
+  protected _actualScrollLeftOffset = signal<number>(0);
+
+  protected _actualScrollRightOffset = signal<number>(0);
+
+  protected _actualScrollTopOffset = signal<number>(0);
+
+  protected _actualScrollBottomOffset = signal<number>(0);
+
+  protected _actualSnapScrollToLeft: Signal<boolean>;
+
+  protected _actualSnapScrollToRight: Signal<boolean>;
+
+  protected _actualSnapScrollToTop: Signal<boolean>;
+
+  protected _actualSnapScrollToBottom: Signal<boolean>;
+
+  protected _alignmentScrollLeftOffset = signal<number>(0);
+
+  protected _alignmentScrollRightOffset = signal<number>(0);
+
+  protected _alignmentScrollTopOffset = signal<number>(0);
+
+  protected _alignmentScrollBottomOffset = signal<number>(0);
+
+  private _elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  private _$scrollTo = new Subject<IScrollParams>();
+  protected $scrollTo = this._$scrollTo.asObservable();
+
+  private _$scroll = new Subject<IScrollEvent>();
+  readonly $scroll = this._$scroll.asObservable();
+
+  get $grabbing() { return this._service.$grabbing };
+
+  private _$fireUpdate = new Subject<boolean>();
+  protected readonly $fireUpdate = this._$fireUpdate.asObservable();
+
+  private _$fireUpdateNextFrame = new Subject<boolean>();
+  protected readonly $fireUpdateNextFrame = this._$fireUpdateNextFrame.asObservable();
+
+  private _$preventScrollSnapping = new BehaviorSubject<boolean>(false);
+  protected readonly $preventScrollSnapping = this._$preventScrollSnapping.asObservable();
+
+  private _destroyRef = inject(DestroyRef);
+
+  private _isLoading = false;
+
+  private _animationId: number = -1;
+
+  private _$viewInit = new BehaviorSubject<boolean>(false);
+  private readonly $viewInit = this._$viewInit.asObservable();
+
+  private _injector = inject(Injector);
+
+  constructor() {
+    NgVirtualScrollViewComponent.__nextId = NgVirtualScrollViewComponent.__nextId + 1 === Number.MAX_SAFE_INTEGER
+      ? 0 : NgVirtualScrollViewComponent.__nextId + 1;
+    this._id = NgVirtualScrollViewComponent.__nextId;
+
+    let hasUserAction = false;
+
+    const _$created = new BehaviorSubject<boolean>(false),
+      $created = _$created.asObservable();
+
+    combineLatest([$created, this.$show]).pipe(
+      takeUntilDestroyed(),
+      filter(([created, shown]) => created && shown),
+      debounceTime(1),
+      tap(v => {
+        this._$initialized.next(true);
+      }),
+    ).subscribe();
+
+    this._service.initialize(this._id);
+
+    const $animationParams = toObservable(this.animationParams);
+    $animationParams.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.animationParams = v;
+      }),
+    ).subscribe();
+
+    this._isInfinity = computed(() => {
+      const mode = this.spreadingMode();
+      return isSpreadingMode(mode, SpreadingModes.INFINITY);
+    });
+
+    const $isInfinity = toObservable(this._isInfinity);
+    $isInfinity.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.isInfinity = v;
+      }),
+    ).subscribe();
+
+    const $bounds = toObservable(this._bounds).pipe(
+      filter(b => !!b),
+    ),
+      $rawScrollLeftOffset = toObservable(this.scrollLeftOffset),
+      $rawScrollRightOffset = toObservable(this.scrollRightOffset),
+      $rawScrollTopOffset = toObservable(this.scrollTopOffset),
+      $rawScrollBottomOffset = toObservable(this.scrollBottomOffset);
+
+    combineLatest([$bounds, $rawScrollLeftOffset]).pipe(
+      takeUntilDestroyed(),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds.width);
+        this._precalculatedScrollLeftOffset.set(val);
+      }),
+    ).subscribe();
+
+    combineLatest([$bounds, $rawScrollRightOffset]).pipe(
+      takeUntilDestroyed(),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds.width);
+        this._precalculatedScrollRightOffset.set(val);
+      }),
+    ).subscribe();
+
+    combineLatest([$bounds, $rawScrollTopOffset]).pipe(
+      takeUntilDestroyed(),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds.height);
+        this._precalculatedScrollTopOffset.set(val);
+      }),
+    ).subscribe();
+
+    combineLatest([$bounds, $rawScrollBottomOffset]).pipe(
+      takeUntilDestroyed(),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds.height);
+        this._precalculatedScrollBottomOffset.set(val);
+      }),
+    ).subscribe();
+
+    this._service.$tick.pipe(
+      takeUntilDestroyed(),
+      tap(() => {
+        // this.checkBoundsOfElements();
+        this._scrollerComponent()?.tick();
+      }),
+    ).subscribe();
+
+    const $scrollerComponent = toObservable(this._scrollerComponent),
+      $resizeViewport = $scrollerComponent.pipe(
+        takeUntilDestroyed(),
+        filter(v => !!v),
+        switchMap(scroller => scroller.$resizeViewport),
+      ),
+      $resizeContent = $scrollerComponent.pipe(
+        takeUntilDestroyed(),
+        filter(v => !!v),
+        switchMap(scroller => scroller.$resizeContent),
+      );
+
+    $resizeViewport.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      tap(v => {
+        this._bounds.set(v);
+        this.onAfterResize(true);
+      }),
+    ).subscribe();
+
+    $resizeContent.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      tap(v => {
+        this._scrollerBounds.set(v);
+        this.onAfterResize();
+      }),
+    ).subscribe();
+
+    const $scrollLeftOffset = toObservable(this._actualScrollLeftOffset).pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+    ),
+      $scrollRightOffset = toObservable(this._actualScrollRightOffset).pipe(
+        takeUntilDestroyed(),
+        distinctUntilChanged(),
+      ),
+      $scrollTopOffset = toObservable(this._actualScrollTopOffset).pipe(
+        takeUntilDestroyed(),
+        distinctUntilChanged(),
+      ),
+      $scrollBottomOffset = toObservable(this._actualScrollBottomOffset).pipe(
+        takeUntilDestroyed(),
+        distinctUntilChanged(),
+      );
+
+    this._scroller = computed(() => {
+      return this._scrollerComponent()?.scrollViewport();
+    });
+
+    const $scrollbarThickness = toObservable(this.scrollbarThickness);
+    $scrollbarThickness.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      tap(scrollbarThickness => {
+        this._service.scrollBarSize = scrollbarThickness;
+      }),
+    ).subscribe();
+
+    this.$fireUpdateNextFrame.pipe(
+      takeUntilDestroyed(),
+      debounceTime(0),
+      tap(userAction => {
+        this._$fireUpdate.next(userAction);
+      }),
+    ).subscribe();
+
+    effect(() => {
+      const dir = this.langTextDir() as TextDirection;
+      this._service.langTextDir = dir;
+    });
+
+    effect(() => {
+      const dist = this.clickDistance();
+      this._service.clickDistance = dist;
+    });
+
+    this._actualSnapScrollToLeft = computed(() => {
+      const snapScrollToLeft = this.snapScrollToLeft(), spreadingMode = this.spreadingMode(),
+        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+      return isInfinity ? false : snapScrollToLeft;
+    });
+
+    this._actualSnapScrollToRight = computed(() => {
+      const snapScrollToRight = this.snapScrollToRight(), spreadingMode = this.spreadingMode(),
+        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+      return isInfinity ? false : snapScrollToRight;
+    });
+
+    this._actualSnapScrollToTop = computed(() => {
+      const snapScrollToTop = this.snapScrollToTop(), spreadingMode = this.spreadingMode(),
+        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+      return isInfinity ? false : snapScrollToTop;
+    });
+
+    this._actualSnapScrollToBottom = computed(() => {
+      const snapScrollToBottom = this.snapScrollToBottom(), spreadingMode = this.spreadingMode(),
+        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+      return isInfinity ? false : snapScrollToBottom;
+    });
+
+    const $viewInit = this.$viewInit,
+      $fireUpdate = this.$fireUpdate;
+
+    $fireUpdate.pipe(
+      takeUntilDestroyed(),
+      tap(userAction => {
+        hasUserAction = userAction;
+      }),
+    ).subscribe();
+
+    const $snapScrollToLeft = toObservable(this._actualSnapScrollToLeft),
+      $snapScrollToRight = toObservable(this._actualSnapScrollToRight),
+      $snapScrollToTop = toObservable(this._actualSnapScrollToTop),
+      $snapScrollToBottom = toObservable(this._actualSnapScrollToBottom);
+
+    const $isScrollLeft = toObservable(this._isScrollLeft),
+      $isScrollRight = toObservable(this._isScrollRight),
+      $isScrollTop = toObservable(this._isScrollTop),
+      $isScrollBottom = toObservable(this._isScrollBottom),
+      $direction = toObservable(this.direction);
+
+    $snapScrollToLeft.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.snapScrollToLeft = v;
+      }),
+    ).subscribe();
+
+    $snapScrollToRight.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.snapScrollToRight = v;
+      }),
+    ).subscribe();
+
+    $snapScrollToTop.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.snapScrollToTop = v;
+      }),
+    ).subscribe();
+
+    $snapScrollToBottom.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.snapScrollToBottom = v;
+      }),
+    ).subscribe();
+
+    $direction.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.direction = v;
+      }),
+    ).subscribe();
+
+    $scrollLeftOffset.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      tap(v => {
+        this._service.scrollLeftOffset = v;
+      }),
+    ).subscribe();
+
+    $scrollRightOffset.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      tap(v => {
+        this._service.scrollRightOffset = v;
+      }),
+    ).subscribe();
+
+    $scrollTopOffset.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      tap(v => {
+        this._service.scrollTopOffset = v;
+      }),
+    ).subscribe();
+
+    $scrollBottomOffset.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      tap(v => {
+        this._service.scrollBottomOffset = v;
+      }),
+    ).subscribe();
+
+    $isScrollLeft.pipe(
+      takeUntilDestroyed(),
+      skip(1),
+      distinctUntilChanged(),
+      debounceTime(0),
+      filter(v => !!v),
+      tap(() => {
+        if (this._scrollerComponent()?.scrollableX) {
+          this.onScrollReachLeft.emit();
+        }
+      }),
+    ).subscribe();
+
+    $isScrollRight.pipe(
+      takeUntilDestroyed(),
+      skip(1),
+      distinctUntilChanged(),
+      debounceTime(0),
+      filter(v => !!v),
+      tap(v => {
+        if (this._scrollerComponent()?.scrollableX) {
+          this.onScrollReachRight.emit();
+        }
+      }),
+    ).subscribe();
+
+    $isScrollTop.pipe(
+      takeUntilDestroyed(),
+      skip(1),
+      distinctUntilChanged(),
+      debounceTime(0),
+      filter(v => !!v),
+      tap(v => {
+        if (this._scrollerComponent()?.scrollableY) {
+          this.onScrollReachTop.emit();
+        }
+      }),
+    ).subscribe();
+
+    $isScrollBottom.pipe(
+      takeUntilDestroyed(),
+      skip(1),
+      distinctUntilChanged(),
+      debounceTime(0),
+      filter(v => !!v),
+      tap(v => {
+        if (this._scrollerComponent()?.scrollableY) {
+          this.onScrollReachBottom.emit();
+        }
+      }),
+    ).subscribe();
+
+    this._actualAlignment = computed(() => {
+      const alignment = this.alignment(), spreadingMode = this.spreadingMode();
+      return isSpreadingMode(spreadingMode, SpreadingModes.INFINITY) ? Alignments.CENTER : alignment;
+    });
+
+    this._actualScrollbarEnabled = computed(() => {
+      const scrollbarEnabled = this.scrollbarEnabled(), spreadingMode = this.spreadingMode();
+      return isSpreadingMode(spreadingMode, SpreadingModes.INFINITY) ? false : scrollbarEnabled;
+    });
+
+    const $alignment = toObservable(this._actualAlignment),
+      $precalculatedScrollLeftOffset = toObservable(this._precalculatedScrollLeftOffset),
+      $precalculatedScrollRightOffset = toObservable(this._precalculatedScrollRightOffset),
+      $precalculatedScrollTopOffset = toObservable(this._precalculatedScrollTopOffset),
+      $precalculatedScrollBottomOffset = toObservable(this._precalculatedScrollBottomOffset),
+      $scrollerBounds = toObservable(this._scrollerBounds).pipe(
+        filter(b => !!b),
+      ),
+      $scrollSizeX = this._$scrollSizeX.asObservable().pipe(
+        takeUntilDestroyed(),
+        distinctUntilChanged(),
+      ),
+      $scrollSizeY = this._$scrollSizeY.asObservable().pipe(
+        takeUntilDestroyed(),
+        distinctUntilChanged(),
+      ),
+      $snapToItem = toObservable(this.snapToItem),
+      $snapToItemAlign = toObservable(this.snapToItemAlign);
+
+    $snapToItem.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.snapToItem = v;
+      }),
+    ).subscribe();
+
+    $viewInit.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      debounceTime(0),
+      tap(() => {
+        this._scrollerComponent()?.snapIfNeed();
+      }),
+    ).subscribe();
+
+    $direction.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        const el: HTMLElement = this._elementRef.nativeElement;
+        if (isDirection(Directions.BOTH, v)) {
+          toggleClassName(el, CLASS_SCROLL_VIEW_BOTH, [CLASS_SCROLL_VIEW_HORIZONTAL, CLASS_SCROLL_VIEW_VERTICAL]);
+        } else if (isDirection(Directions.HORIZONTAL, v)) {
+          toggleClassName(el, CLASS_SCROLL_VIEW_HORIZONTAL, [CLASS_SCROLL_VIEW_BOTH, CLASS_SCROLL_VIEW_VERTICAL]);
+        } else if (isDirection(Directions.VERTICAL, v)) {
+          toggleClassName(el, CLASS_SCROLL_VIEW_VERTICAL, [CLASS_SCROLL_VIEW_BOTH, CLASS_SCROLL_VIEW_HORIZONTAL]);
+        }
+      }),
+    ).subscribe();
+
+    const $preventScrollSnapping = this.$preventScrollSnapping;
+
+    $preventScrollSnapping.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      tap(() => {
+        this._isScrollLeft.set(false);
+        this._isScrollRight.set(false);
+      }),
+      tap(() => {
+        this._$preventScrollSnapping.next(false);
+      }),
+    ).subscribe();
+
+    const $loading = toObservable(this.loading);
+
+    $loading.pipe(
+      takeUntilDestroyed(),
+      skip(1),
+      distinctUntilChanged(),
+      tap(v => {
+        if (v) {
+          this._isLoading = true;
+        }
+      }),
+      filter(v => !v),
+      tap(() => {
+        this._$preventScrollSnapping.next(true);
+      }),
+      debounceTime(100),
+      tap(() => {
+        this._isLoading = false;
+      }),
+    ).subscribe();
+
+    $viewInit.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      switchMap(() => {
+        return combineLatest([$isInfinity, $snapScrollToLeft, $snapScrollToRight, $snapScrollToTop, $snapScrollToBottom, $bounds, $scrollerBounds,
+          $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollBottomOffset, $scrollSizeX, $scrollSizeY, $direction, $snapToItem, $snapToItemAlign,
+          $alignment, this.$fireUpdate,
+        ]).pipe(
+          takeUntilDestroyed(this._destroyRef),
+          tap(([
+            isInfinity, snapScrollToLeft, snapScrollToRight, snapScrollToTop, snapScrollToBottom, bounds, scrollerBounds,
+            scrollLeftOffset, scrollRightOffset, scrollTopOffset, scrollBottomOffset, scrollSizeX, scrollSizeY, direction, snapToItem, snapToItemAlign,
+            alignment,
+          ]) => {
+            const scroller = this._scrollerComponent();
+            if (!!scroller) {
+              const userAction = hasUserAction;
+
+              const currentScrollSizeX = scroller.scrollLeft,
+                currentScrollSizeY = scroller.scrollTop,
+                actualScrollSizeX = snapScrollToLeft ? scroller.scrollLeft : snapScrollToRight ? scroller.scrollWidth : scroller.scrollLeft,
+                actualScrollSizeY = snapScrollToTop ? scroller.scrollTop : snapScrollToBottom ? scroller.scrollHeight : scroller.scrollTop;
+
+              this.snappingHandler();
+
+              this.updateOffsetsByAllignment();
+
+              if (!_$created.getValue()) {
+                _$created.next(true);
+              }
+
+              const scrollPositionAfterUpdateX = actualScrollSizeX,
+                scrollPositionAfterUpdateY = actualScrollSizeY,
+                roundedScrollPositionAfterUpdateX = scrollPositionAfterUpdateX,
+                roundedScrollPositionAfterUpdateY = scrollPositionAfterUpdateY,
+                roundedMaxPositionAfterUpdateX = scroller.actualScrollWidth,
+                roundedMaxPositionAfterUpdateY = scroller.actualScrollHeight;
+
+              let toStart = false,
+                toEnd = false;
+
+              // if ((snapScrollToLeft && scroller.scrollableX) ||
+              //   (snapScrollToLeft && currentScrollSizeX <= MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
+              //   if (currentScrollSizeX !== roundedScrollPositionAfterUpdateX) {
+              //     this.emitScrollEvent(true, false, userAction);
+
+              //     const params: IScrollToParams = {
+              //       [LEFT_PROP_NAME]: 0, userAction,
+              //       fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+              //       blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+              //     };
+              //     const animationId = scroller?.scrollTo?.(params);
+              //     if (animationId > -1) {
+              //       this._animationId = animationId;
+              //     } else {
+              //       scroller.stopAnimation(this._animationId);
+              //     }
+              //     toStart = true;
+              //   }
+              // }
+
+              // if ((snapScrollToTop && scroller.scrollableY) ||
+              //   (snapScrollToTop && currentScrollSizeY <= MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
+              //   if (currentScrollSizeY !== roundedScrollPositionAfterUpdateY) {
+              //     this.emitScrollEvent(true, false, userAction);
+
+              //     const params: IScrollToParams = {
+              //       [TOP_PROP_NAME]: 0, userAction,
+              //       fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+              //       blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+              //     };
+              //     const animationId = scroller?.scrollTo?.(params);
+              //     if (animationId > -1) {
+              //       this._animationId = animationId;
+              //     } else {
+              //       scroller.stopAnimation(this._animationId);
+              //     }
+              //     toStart = true;
+              //   }
+              // }
+
+              // if (toStart) {
+              //   return;
+              // }
+
+              // if ((snapScrollToRight) || (snapScrollToRight && !scroller.scrollableX) ||
+              //   (scrollPositionAfterUpdateX + MIN_PIXELS_FOR_PREVENT_SNAPPING >= roundedMaxPositionAfterUpdateX) ||
+              //   (roundedScrollPositionAfterUpdateX >= scrollPositionAfterUpdateX + MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
+
+              //   this.emitScrollEvent(true, false, false);
+
+              //   const params: IScrollToParams = {
+              //     [LEFT_PROP_NAME]: roundedMaxPositionAfterUpdateX,
+              //     behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+              //     userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+              //   };
+              //   const animationId = scroller?.scrollTo?.(params);
+              //   if (animationId > -1) {
+              //     this._animationId = animationId;
+              //   } else {
+              //     scroller.stopAnimation(this._animationId);
+              //   }
+              //   toEnd = true;
+              // }
+
+              // if ((snapScrollToBottom) || (snapScrollToBottom && !scroller.scrollableY) ||
+              //   (scrollPositionAfterUpdateY + MIN_PIXELS_FOR_PREVENT_SNAPPING >= roundedMaxPositionAfterUpdateY) ||
+              //   (roundedScrollPositionAfterUpdateY >= scrollPositionAfterUpdateY + MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
+
+              //   this.emitScrollEvent(true, false, false);
+
+              //   const params: IScrollToParams = {
+              //     [TOP_PROP_NAME]: roundedMaxPositionAfterUpdateY,
+              //     behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+              //     userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+              //   };
+              //   const animationId = scroller?.scrollTo?.(params);
+              //   if (animationId > -1) {
+              //     this._animationId = animationId;
+              //   } else {
+              //     scroller.stopAnimation(this._animationId);
+              //   }
+              //   toEnd = true;
+              // }
+
+              // if (toEnd) {
+              //   return;
+              // }
+
+              // if ((scrollSizeX !== scrollPositionAfterUpdateX &&
+              //   ((scrollPositionAfterUpdateX >= 0 && scrollPositionAfterUpdateX < roundedMaxPositionAfterUpdateX) ||
+              //     (scrollSizeX !== roundedMaxPositionAfterUpdateX || currentScrollSizeX !== scrollPositionAfterUpdateX))) ||
+              //   (scrollSizeY !== scrollPositionAfterUpdateY &&
+              //     ((scrollPositionAfterUpdateY >= 0 && scrollPositionAfterUpdateY < roundedMaxPositionAfterUpdateY) ||
+              //       (scrollSizeY !== roundedMaxPositionAfterUpdateY || currentScrollSizeY !== scrollPositionAfterUpdateY)))) {
+
+              //   this.emitScrollEvent(true, false, userAction);
+              //   if (this._animationId > -1) {
+              //     scroller.stopAnimation(this._animationId);
+              //     this._animationId = -1;
+              //   }
+              //   const params: IScrollToParams = {
+              //     [LEFT_PROP_NAME]: scrollPositionAfterUpdateX,
+              //     [TOP_PROP_NAME]: scrollPositionAfterUpdateY, blending: true, userAction,
+              //     fireUpdate: true, behavior: BEHAVIOR_INSTANT, duration: 0,
+              //   };
+              //   scroller.scrollTo(params);
+              //   return;
+              // }
+            }
+          }),
+        );
+      }),
+    ).subscribe();
+
+    const $scroller = toObservable(this._scroller).pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      map(v => v.nativeElement),
+      take(1),
+    ),
+      $scrollerScroll = $scrollerComponent.pipe(
+        takeUntilDestroyed(),
+        filter(v => !!v),
+        take(1),
+        switchMap(scroller => scroller.$scroll),
+      ),
+      $scrollerScrollEnd = $scrollerComponent.pipe(
+        takeUntilDestroyed(),
+        filter(v => !!v),
+        take(1),
+        switchMap(scroller => scroller.$scrollEnd),
+      ),
+      $scrollbarScroll = $scrollerComponent.pipe(
+        takeUntilDestroyed(),
+        filter(v => !!v),
+        take(1),
+        switchMap(scroller => scroller.$scrollbarScroll),
+      );
+
+    $scrollerComponent.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      switchMap(scroller => toObservable(scroller.contentBounds, { injector: this._injector }).pipe(
+        takeUntilDestroyed(this._destroyRef),
+        tap(({ width, height }) => {
+          scroller.totalWidth = width;
+          scroller.totalHeight = height;
+        })
+      )),
+    ).subscribe();
+
+    $scrollerComponent.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      take(1),
+      tap(scroller => {
+        scroller.prepared = true;
+      }),
+    ).subscribe();
+
+    const scrollHandler = (userAction: boolean = false) => {
+      const scroller = this._scrollerComponent();
+      if (!!scroller) {
+        const scrollSizeX = scroller.scrollLeft,
+          scrollSizeY = scroller.scrollTop;
+
+        if (userAction) {
+          this._$preventScrollSnapping.next(true);
+        }
+
+        this._$scrollSizeX.next(scrollSizeX);
+        this._$scrollSizeY.next(scrollSizeY);
+      }
+    };
+
+    $scroller.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      switchMap(scroller => {
+        return $scrollbarScroll.pipe(
+          takeUntilDestroyed(this._destroyRef),
+          tap(userAction => {
+            const scrollerEl = this._scroller()?.nativeElement, scrollerComponent = this._scrollerComponent();
+            if (!!scrollerEl && !!scrollerComponent) {
+              this.emitScrollEvent(false, true, hasUserAction);
+            }
+            if (userAction) {
+              if (this._isScrollLeft() || this._isScrollRight() || this._isScrollTop() || this._isScrollBottom()) {
+                this._$preventScrollSnapping.next(true);
+              }
+              this._$preventScrollSnapping.next(true);
+            }
+          }),
+        );
+      }),
+    ).subscribe();
+
+    $scroller.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      switchMap(scroller => {
+        return $scrollerScroll.pipe(
+          takeUntilDestroyed(this._destroyRef),
+        );
+      }),
+      tap(userAction => {
+        hasUserAction = userAction;
+        const scrollerEl = this._scroller()?.nativeElement, scrollerComponent = this._scrollerComponent();
+        if (!!scrollerEl && !!scrollerComponent) {
+          this.emitScrollEvent(false, true, userAction);
+        }
+        scrollHandler(userAction);
+      }),
+    ).subscribe();
+
+    $scroller.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      switchMap(scroller => {
+        return $scrollerScrollEnd.pipe(
+          takeUntilDestroyed(this._destroyRef),
+        );
+      }),
+      tap(userAction => {
+        hasUserAction = userAction;
+        const scrollerEl = this._scroller()?.nativeElement, scrollerComponent = this._scrollerComponent();
+        if (!!scrollerEl && !!scrollerComponent) {
+          this.emitScrollEvent(true, true, userAction);
+        }
+        scrollHandler(userAction);
+      }),
+    ).subscribe();
+
+    $bounds.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      tap(value => {
+        const size: ISize = { width: value.width, height: value.height };
+        this.onViewportChange.emit(objectAsReadonly(size));
+      }),
+    ).subscribe();
+  }
+
+  ngAfterViewInit() {
+    this._$viewInit.next(true);
+
+    this._$fireUpdate.next(false);
+  }
+
+  private onAfterResize(update = false) {
+    this.snappingHandler();
+
+    if (update) {
+      const scroller = this._scrollerComponent();
+      if (!!scroller) {
+        this._$fireUpdate.next(false);
+        scroller.refresh(true, true);
+      }
+    }
+  }
+
+  private snappingHandler() {
+    const scroller = this._scrollerComponent();
+    if (!!scroller) {
+      const maxScrollWidth = Math.round(scroller.scrollWidth ?? 0),
+        maxScrollHeight = Math.round(scroller.scrollHeight),
+        scrollWidth = scroller.scrollLeft ?? 0,
+        scrollHeight = scroller.scrollTop ?? 0,
+        actualScrollWidth = Math.round(scrollWidth),
+        actualScrollHeight = Math.round(scrollHeight);
+      if (!this._isLoading) {
+        const _isScrollRight = (maxScrollWidth >= (actualScrollWidth - MIN_PIXELS_FOR_PREVENT_SNAPPING)) || !scroller.scrollableX;
+        if (_isScrollRight) {
+          this._isScrollLeft.set(false);
+          this._isScrollRight.set(true);
+        } else {
+          const isScrollStart = (maxScrollWidth <= MIN_PIXELS_FOR_PREVENT_SNAPPING);
+          this._isScrollLeft.set(isScrollStart);
+          this._isScrollRight.set(false);
+        }
+        const _isScrollBottom = (maxScrollHeight >= (actualScrollHeight - MIN_PIXELS_FOR_PREVENT_SNAPPING)) || !scroller.scrollableY;
+        if (_isScrollBottom) {
+          this._isScrollTop.set(false);
+          this._isScrollBottom.set(true);
+        } else {
+          const isScrollTop = (maxScrollHeight <= MIN_PIXELS_FOR_PREVENT_SNAPPING);
+          this._isScrollTop.set(isScrollTop);
+          this._isScrollBottom.set(false);
+        }
+      } else {
+        const snapScrollToLeft = this._actualSnapScrollToLeft(), snapScrollToRight = this._actualSnapScrollToRight();
+        if (!snapScrollToLeft && snapScrollToRight) {
+          this._isScrollLeft.set(false);
+          this._isScrollRight.set(true);
+        } else if (snapScrollToLeft && snapScrollToRight) {
+          this._isScrollLeft.set(true);
+          this._isScrollRight.set(false);
+        } else {
+          this._isScrollLeft.set(false);
+          this._isScrollRight.set(false);
+        }
+        const snapScrollToTop = this._actualSnapScrollToTop(), snapScrollToBottom = this._actualSnapScrollToBottom();
+        if (!snapScrollToTop && snapScrollToBottom) {
+          this._isScrollLeft.set(false);
+          this._isScrollRight.set(true);
+        } else if (snapScrollToTop && snapScrollToBottom) {
+          this._isScrollLeft.set(true);
+          this._isScrollRight.set(false);
+        } else {
+          this._isScrollLeft.set(false);
+          this._isScrollRight.set(false);
+        }
+      }
+    }
+  };
+
+  private emitScrollEvent(isScrollEnd: boolean = false, update: boolean = true, userAction: boolean = false) {
+    const scrollerComponent = this._scrollerComponent();
+    if (!!scrollerComponent) {
+      const scrollWidth = scrollerComponent.scrollLeft,
+        scrollHeight = scrollerComponent.scrollTop,
+        maxScrollWidth = scrollerComponent.scrollWidth,
+        maxScrollHeight = scrollerComponent.scrollHeight,
+        bounds = this._bounds() || { x: 0, y: 0, width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE };
+
+      const event = new ScrollEvent({
+        directionX: scrollerComponent.scrollDirectionX,
+        directionY: scrollerComponent.scrollDirectionY,
+        bounds,
+        scrollerDirection: this.direction(),
+        scrollWidth,
+        scrollHeight,
+        isRight: !scrollerComponent.scrollableX || this._isScrollRight() || (Math.round(scrollWidth) === Math.round(maxScrollWidth)),
+        isBottom: !scrollerComponent.scrollableY || this._isScrollBottom() || (Math.round(scrollHeight) === Math.round(maxScrollHeight)),
+        userAction,
+      });
+      if (update) {
+        this._$scroll.next(event);
+      }
+
+      if (isScrollEnd) {
+        this.onScrollEnd.emit(event);
+      } else {
+        this.onScroll.emit(event);
+      }
+    }
+  }
+
+  private updateOffsetsByAllignment() {
+    const scrollerComponent = this._scrollerComponent();
+    if (!!scrollerComponent) {
+      const alignment = this._actualAlignment(),
+        isInfinity = this._isInfinity(),
+        { width, height } = this._bounds() || { width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE },
+        viewportSizeWidth = width,
+        viewportSizeHeight = height,
+        { width: contentWidth, height: contentHeight } = scrollerComponent.contentBounds(),
+        precalculatedScrollStartOffset = this._precalculatedScrollLeftOffset(),
+        precalculatedScrollEndOffset = this._precalculatedScrollTopOffset();
+      switch (alignment) {
+        case Alignments.NONE: {
+          this._actualScrollLeftOffset.set(precalculatedScrollStartOffset);
+          this._actualScrollTopOffset.set(precalculatedScrollEndOffset);
+          break;
+        }
+        case Alignments.CENTER: {
+          const alignmentLeftOffset = viewportSizeWidth * .5 - contentWidth * (isInfinity || !scrollerComponent.scrollableX ? 0 : .5),
+            alignmentRightOffset = viewportSizeWidth * .5 - contentWidth * (isInfinity || !scrollerComponent.scrollableX ? 0 : .5),
+            alignmentTopOffset = viewportSizeHeight * .5 - contentHeight * (isInfinity || !scrollerComponent.scrollableY ? 0 : .5),
+            alignmentBottomOffset = viewportSizeHeight * .5 - contentHeight * (isInfinity || !scrollerComponent.scrollableY ? 0 : .5);
+
+          this._alignmentScrollLeftOffset.set(alignmentLeftOffset);
+          this._alignmentScrollRightOffset.set(alignmentRightOffset);
+          this._alignmentScrollTopOffset.set(alignmentTopOffset);
+          this._alignmentScrollBottomOffset.set(alignmentBottomOffset);
+          this._actualScrollLeftOffset.set(precalculatedScrollStartOffset + alignmentLeftOffset);
+          this._actualScrollRightOffset.set(precalculatedScrollEndOffset + alignmentRightOffset);
+          this._actualScrollTopOffset.set(precalculatedScrollStartOffset + alignmentTopOffset);
+          this._actualScrollBottomOffset.set(precalculatedScrollEndOffset + alignmentBottomOffset);
+          break;
+        }
+      }
+    }
+  }
+
+  // private resetBoundsSize(isVertical: boolean, totalSize: number) {
+  //   const l = this._list(), prop = isVertical ? HEIGHT_PROP_NAME : WIDTH_PROP_NAME,
+  //     size = totalSize;
+  //   if (!!l && parseInt(l.nativeElement.style[prop]) !== size) {
+  //     l.nativeElement.style[prop] = `${size}${PX}`;
+  //   }
+  // }
+
+  // /**
+  //  * The method scrolls the list to the element with the given `id` and returns the value of the scrolled area.
+  //  */
+  // scrollTo(id: Id, cb: (() => void) | null = null, options: IScrollOptions | null = null) {
+  //   const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
+  //     blending = options?.blending ?? false,
+  //     focused = options?.focused ?? true,
+  //     delay = options?.delay ?? 0,
+  //     iteration = options?.iteration ?? 0;
+  //   validateId(id);
+  //   validateScrollBehavior(behavior);
+  //   validateIteration(iteration);
+  //   const actualIteration = validateScrollIteration(iteration);
+  //   this._elementRef.nativeElement.focus();
+  //   if (!this._scrollerComponent()?.scrollable && !this._isInfinity()) {
+  //     this.scrollToFinalize(id, focused, cb);
+  //     return;
+  //   }
+  //   this._$scrollTo.next({
+  //     id, behavior, blending, delay, iteration: actualIteration, isLastIteration: actualIteration === MAX_SCROLL_TO_ITERATIONS, cb: () => {
+  //       this.scrollToFinalize(id, focused, cb);
+  //     }
+  //   });
+  // }
+
+  // /**
+  //  * Scrolls the scroll area to the first item in the collection.
+  //  */
+  // scrollToStart(cb: (() => void) | null = null, options: IScrollOptions | null = null) {
+  //   const scroller = this._scrollerComponent();
+  //   if (!!scroller) {
+  //     const scrollSize = this.isVertical ? scroller.scrollTop : scroller.scrollLeft;
+  //     if (scrollSize === 0) {
+  //       return;
+  //     }
+  //     scroller.stopScrolling();
+  //   }
+  //   const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
+  //     blending = options?.blending ?? false,
+  //     focused = options?.focused ?? true,
+  //     delay = options?.delay ?? 0,
+  //     iteration = options?.iteration ?? 0;
+  //   validateScrollBehavior(behavior);
+  //   validateIteration(iteration);
+  //   const trackBy = this.trackBy(), items = this._actualItems(), firstItem = items.length > 0 ? items[0] ?? null : null, id = firstItem?.[trackBy] ?? null,
+  //     actualIteration = validateScrollIteration(iteration);
+  //   if (!!firstItem) {
+  //     this._elementRef.nativeElement.focus();
+  //     this._$scrollTo.next({
+  //       id, behavior, blending, delay, iteration: actualIteration, isLastIteration: actualIteration === MAX_SCROLL_TO_ITERATIONS, cb: () => {
+  //         this._isScrollLeft.set(true);
+  //         this._trackBox.isScrollStart = true;
+  //         this._trackBox._isScrollRight = false;
+  //         this._$fireUpdate.next(true);
+  //         this.scrollToFinalize(id, focused, cb);
+  //       }
+  //     });
+  //   }
+  // }
+
+  // /**
+  //  * @deprecated
+  //  * The scrollToEndItem method is deprecated. Use the scrollToEnd method.
+  //  */
+  // scrollToEndItem(cb?: () => void, options?: IScrollOptions) {
+  //   throw Error('The scrollToEndItem method is deprecated. Use the scrollToEnd method.');
+  // }
+
+  // /**
+  //  * Scrolls the list to the end of the content size.
+  //  */
+  // scrollToEnd(cb: (() => void) | null = null, options: IScrollOptions | null = null) {
+  //   const scroller = this._scrollerComponent();
+  //   if (!!scroller) {
+  //     const isVertical = this.isVertical,
+  //       scrollSize = isVertical ? scroller.scrollTop : scroller.scrollLeft,
+  //       maxScrollSize = isVertical ? scroller.scrollHeight : scroller.scrollTop;
+  //     if (scrollSize === maxScrollSize) {
+  //       return;
+  //     }
+  //     scroller.stopScrolling();
+  //   }
+  //   const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
+  //     blending = options?.blending ?? false,
+  //     focused = options?.focused ?? true,
+  //     delay = options?.delay ?? 0,
+  //     iteration = options?.iteration ?? 0;
+  //   validateScrollBehavior(behavior);
+  //   validateIteration(iteration);
+  //   const trackBy = this.trackBy(), items = this._actualItems(), latItem = items[items.length > 0 ? items.length - 1 : 0], id = latItem?.[trackBy] ?? null,
+  //     actualIteration = validateScrollIteration(iteration);
+  //   if (latItem === null) {
+  //     return;
+  //   }
+  //   this._elementRef.nativeElement.focus();
+  //   if (!this._scrollerComponent()?.scrollable) {
+  //     this.scrollToFinalize(id, focused, cb);
+  //     return;
+  //   }
+  //   this._$scrollTo.next({
+  //     id, behavior, blending, delay, iteration: actualIteration, isLastIteration: actualIteration === MAX_SCROLL_TO_ITERATIONS, cb: () => {
+  //       this._isScrollRight.set(true);
+  //       this._trackBox.isScrollStart = false;
+  //       this._trackBox._isScrollRight = true;
+  //       this._$fireUpdate.next(true);
+  //       this.scrollToFinalize(id, focused, cb);
+  //     }
+  //   });
+  // }
+
+  // private scrollToFinalize(id: Id, focused: boolean, cb: (() => void) | null) {
+  //   if (focused) {
+  //     const el = this._service.getFocusedElementById(id);
+  //     if (!!el) {
+  //       this._service.focus(el, FocusAlignments.NONE);
+  //     }
+  //   }
+  //   if (typeof cb === 'function') {
+  //     cb?.();
+  //   }
+  // }
+
+  /**
+   * Prevents the list from snapping to its start or end edge.
+   */
+  preventSnapping() {
+    const scroller = this._scrollerComponent();
+    this._isScrollLeft.set(false);
+    this._isScrollRight.set(false);
+    if (!!scroller) {
+      scroller.stopScrolling();
+    }
+  }
+
+  ngOnDestroy(): void {
+
+  }
+}

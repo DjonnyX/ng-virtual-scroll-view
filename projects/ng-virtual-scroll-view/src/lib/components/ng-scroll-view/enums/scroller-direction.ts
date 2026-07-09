@@ -1,0 +1,11 @@
+/**
+ * ScrollerDirection
+ * @link https://github.com/DjonnyX/ng-virtual-grid/blob/19.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/enums/scroller-direction.ts
+ * @author Evgenii Alexandrovich Grebennikov
+ * @email djonnyx@gmail.com
+ */
+export enum ScrollerDirection {
+    HORIZONTAL = 'horizontal',
+    VERTICAL = 'vertical',
+    BOTH = 'both',
+}

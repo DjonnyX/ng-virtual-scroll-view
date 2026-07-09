@@ -1,0 +1,249 @@
+import { Injectable, OnDestroy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
+import { combineLatest, distinctUntilChanged, Subject, tap } from 'rxjs';
+import { IAnimationParams, IRect, IScrollOptions, IScrollViewService } from './interfaces';
+import { Directions, TextDirections } from './enums';
+import { Direction, TextDirection } from './types';
+import { DEFAULT_ANIMATION_PARAMS, DEFAULT_CLICK_DISTANCE, DEFAULT_SNAP_TO_ITEM } from './const';
+import { Id } from './types';
+import { IScrollToParams } from './interfaces/scroll-to-params';
+
+/**
+ * NgVirtualScrollViewService
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.service.ts
+ * @author Evgenii Alexandrovich Grebennikov
+ * @email djonnyx@gmail.com
+ */
+@Injectable({
+  providedIn: 'root'
+})
+export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy {
+  private _id: number = 0;
+  get id() { return this._id; }
+
+  private _nextComponentId: number = 0;
+
+  private _$scrollTo = new Subject<IScrollToParams | undefined>();
+  readonly $scrollTo = this._$scrollTo.asObservable();
+
+  // private _$scrollToStart = new Subject<IScrollOptions | undefined>();
+  // readonly $scrollToStart = this._$scrollToStart.asObservable();
+
+  // private _$scrollToEnd = new Subject<IScrollOptions | undefined>();
+  // readonly $scrollToEnd = this._$scrollToEnd.asObservable();
+
+  private _$tick = new Subject<void>();
+  readonly $tick = this._$tick.asObservable();
+
+  dynamic: boolean = true;
+
+  scrollLeftOffset: number = 0;
+
+  scrollRightOffset: number = 0;
+
+  scrollTopOffset: number = 0;
+
+  scrollBottomOffset: number = 0;
+
+  snapToItem: boolean = DEFAULT_SNAP_TO_ITEM;
+
+  isInfinity: boolean = false;
+
+  isVertical: boolean = true;
+
+  snapScrollToLeft: boolean = false;
+
+  snapScrollToRight: boolean = false;
+
+  snapScrollToTop: boolean = false;
+
+  snapScrollToBottom: boolean = false;
+
+  animationParams: IAnimationParams = DEFAULT_ANIMATION_PARAMS;
+
+  listElement: HTMLDivElement | null = null;
+
+  direction: Direction = Directions.BOTH;
+
+  private _$langTextDir = new BehaviorSubject<TextDirection>(TextDirections.LTR);
+  readonly $langTextDir = this._$langTextDir.asObservable();
+  get langTextDir() { return this._$langTextDir.getValue(); }
+
+  private _langTextDir: TextDirection = TextDirections.LTR;
+  set langTextDir(v: TextDirection) {
+    if (this._langTextDir === v) {
+      return;
+    }
+
+    this._langTextDir = v;
+
+    this._$langTextDir.next(v);
+  }
+
+  private _$grabbing = new BehaviorSubject<boolean>(false);
+  readonly $grabbing = this._$grabbing.asObservable();
+  get grabbing() { return this._$grabbing.getValue(); }
+
+  private _grabbing: boolean = false;
+  set grabbing(v: boolean) {
+    if (this._grabbing === v) {
+      return;
+    }
+
+    this._grabbing = v;
+
+    this._$grabbing.next(v);
+  }
+
+  private _$clickPressed = new BehaviorSubject<boolean>(false);
+  readonly $clickPressed = this._$clickPressed.asObservable();
+  get clickPressed() { return this._$clickPressed.getValue(); }
+
+  private _clickPressed: boolean = false;
+  set clickPressed(v: boolean) {
+    if (this._clickPressed === v) {
+      return;
+    }
+
+    this._clickPressed = v;
+
+    this._$clickPressed.next(v);
+  }
+
+  private _$isGrabbing = new BehaviorSubject<boolean>(false);
+  readonly $isGrabbing = this._$isGrabbing.asObservable();
+  get isGrabbing() { return this._$isGrabbing.getValue(); }
+
+  get scrollBarSize() { return this._$scrollBarSize.getValue(); }
+
+  private _scrollBarSize: number = 0;
+  set scrollBarSize(v: number) {
+    if (this._scrollBarSize === v) {
+      return;
+    }
+
+    this._scrollBarSize = v;
+
+    this._$scrollBarSize.next(v);
+  }
+  private _$scrollBarSize = new BehaviorSubject<number>(this._scrollBarSize);
+  readonly $scrollBarSize = this._$scrollBarSize.asObservable();
+
+  private _$intersectionElementBySnapToItemAlign = new BehaviorSubject<Id | null>(null);
+  readonly $intersectionElementBySnapToItemAlign = this._$intersectionElementBySnapToItemAlign.asObservable();
+
+  private _$clickDistance = new BehaviorSubject<number>(DEFAULT_CLICK_DISTANCE);
+  readonly $clickDistance = this._$clickDistance.asObservable();
+  get clickDistance() { return this._$clickDistance.getValue(); }
+
+  private _clickDistance: number = DEFAULT_CLICK_DISTANCE;
+  set clickDistance(v: number) {
+    if (this._clickDistance === v) {
+      return;
+    }
+
+    this._clickDistance = v;
+
+    this._$clickDistance.next(v);
+  }
+
+  private _tickerId: number | null = null;
+
+  constructor() {
+    const $grabbing = this.$grabbing.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+    ), $clickPressed = this.$clickPressed.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+    );
+    combineLatest([$grabbing, $clickPressed]).pipe(
+      takeUntilDestroyed(),
+      tap(([grabbing, clickPressed]) => {
+        this._$isGrabbing.next(grabbing && !clickPressed);
+      }),
+    ).subscribe();
+
+    this.tick();
+  }
+
+  private tick() {
+    this._$tick.next();
+
+    this._tickerId = requestAnimationFrame(() => {
+      this.tick();
+    });
+  }
+
+  focusList() {
+    const element = this.listElement;
+    if (!!element) {
+      element.focus({ preventScroll: true });
+    }
+  }
+
+  initialize(id: number) {
+    this._id = id;
+  }
+
+  generateComponentId() {
+    return this._nextComponentId = this._nextComponentId === Number.MAX_SAFE_INTEGER
+      ? 0 : this._nextComponentId + 1;
+  }
+
+  getComponentBoundsByIntersectionPosition(positionX: number, positionY: number, maxPositionX: number | null = null, maxPositionY: number | null = null):
+    (IRect & { id: Id | null; isFirst: boolean; isLast: boolean; }) | null {
+    return null;
+  }
+
+  setIntersectionElementBySnapToItemAlign(id: Id | null) {
+    if (this._$intersectionElementBySnapToItemAlign.getValue() !== id) {
+      this._$intersectionElementBySnapToItemAlign.next(id);
+    }
+  }
+
+  /**
+    * The method scrolls the list to the element with the given `id` and returns the value of the scrolled area.
+    */
+  // scrollTo(id: Id, cb: (() => void) | null = null, options: IScrollOptions | null = null) {
+  //   this._$scrollTo.next({ id, cb, options });
+  // }
+
+  update(immediately: boolean = false) { }
+
+  /**
+   * Scrolls the scroll area to the first item in the collection.
+   */
+  scrollToLeft(options?: IScrollOptions) {
+    // this._$scrollToStart.next(options);
+  }
+
+  /**
+   * Scrolls the list to the end of the content size.
+   */
+  scrollToRight(options?: IScrollOptions) {
+    // this._$scrollToEnd.next(options);
+  }
+
+  /**
+   * Scrolls the scroll area to the first item in the collection.
+   */
+  scrollToTop(options?: IScrollOptions) {
+    // this._$scrollToStart.next(options);
+  }
+
+  /**
+   * Scrolls the list to the end of the content size.
+   */
+  scrollToBottom(options?: IScrollOptions) {
+    // this._$scrollToEnd.next(options);
+  }
+
+  ngOnDestroy() {
+    if (this._tickerId !== null) {
+      cancelAnimationFrame(this._tickerId);
+      this._tickerId = null;
+    }
+  }
+}

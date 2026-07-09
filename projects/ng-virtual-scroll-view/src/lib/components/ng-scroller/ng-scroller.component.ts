@@ -1,0 +1,608 @@
+import { Component, computed, effect, ElementRef, input, output, Signal, signal, TemplateRef, viewChild, ViewChild } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { combineLatest, debounceTime, filter, from, Subject, tap } from 'rxjs';
+import { ScrollBox } from './utils';
+import { Id, TextDirection } from '../../types';
+import { NgScrollBarComponent } from "../ng-scroll-bar/ng-scroll-bar.component";
+import { GradientColorPositions } from '../../types/gradient-color-positions';
+import {
+  BEHAVIOR_INSTANT, DEFAULT_MAX_MOTION_BLUR, DEFAULT_MOTION_BLUR, DEFAULT_MOTION_BLUR_ENABLED, DEFAULT_OVERLAPPING_SCROLLBAR,
+  DEFAULT_SCROLLBAR_ENABLED, DEFAULT_SCROLLBAR_INTERACTIVE, DEFAULT_SCROLLBAR_MIN_SIZE, DEFAULT_SCROLLBAR_THICKNESS, LEFT_PROP_NAME,
+  PX, SCROLLER_SCROLL, TOP_PROP_NAME,
+} from '../../const';
+import { TextDirections } from '../../enums';
+import { IScrollToParams, NgScrollView, SCROLL_VIEW_INVERSION } from '../ng-scroll-view';
+import { IScrollBarDragEvent } from '../ng-scroll-bar/interfaces';
+import { SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SCROLL_VIEW_OVERSCROLL_ENABLED } from '../ng-scroll-view/const';
+import { ISize } from '../../interfaces';
+import { ScrollerDirection } from '../ng-scroll-view/enums';
+
+const TOP = 'top',
+  LEFT = 'left',
+  INSTANT = 'instant',
+  MOTION_BLUR = 'motion-blur';
+
+export const SCROLL_EVENT = new Event(SCROLLER_SCROLL);
+
+/**
+ * The scroller for the NgVirtualList item component
+ * Maximum performance for extremely large lists.
+ * It is based on algorithms for virtualization of screen objects.
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/ng-scroller.component.ts
+ * @author Evgenii Alexandrovich Grebennikov
+ * @email djonnyx@gmail.com
+ */
+@Component({
+  selector: 'ng-scroller',
+  providers: [
+    { provide: SCROLL_VIEW_INVERSION, useValue: false },
+    { provide: SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, useValue: true },
+    { provide: SCROLL_VIEW_OVERSCROLL_ENABLED, useValue: true },
+  ],
+  standalone: false,
+  templateUrl: './ng-scroller.component.html',
+  styleUrl: './ng-scroller.component.scss'
+})
+export class NgScrollerComponent extends NgScrollView {
+  @ViewChild('scrollBarHorizontal', { read: NgScrollBarComponent })
+  readonly scrollBarHorizontal: NgScrollBarComponent | undefined;
+
+  @ViewChild('scrollBarVertical', { read: NgScrollBarComponent })
+  readonly scrollBarVertical: NgScrollBarComponent | undefined;
+
+  readonly filter = viewChild<ElementRef<SVGFEGaussianBlurElement>>('filter');
+
+  readonly onScrollbarVisible = output<boolean>();
+
+  readonly scrollbarEnabled = input<boolean>(DEFAULT_SCROLLBAR_ENABLED);
+
+  readonly scrollbarInteractive = input<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE);
+
+  readonly focusedElement = input<Id | null>(null);
+
+  readonly overlappingScrollbar = input<boolean>(DEFAULT_OVERLAPPING_SCROLLBAR);
+
+  readonly content = input<HTMLElement>();
+
+  readonly loading = input<boolean>(false);
+
+  readonly classes = input<{ [cName: string]: boolean }>({});
+
+  readonly scrollbarMinSize = input<number>(DEFAULT_SCROLLBAR_MIN_SIZE);
+
+  readonly scrollbarThickness = input<number>(DEFAULT_SCROLLBAR_THICKNESS);
+
+  readonly scrollbarThumbRenderer = input<TemplateRef<any> | null>(null);
+
+  readonly scrollbarThumbParams = input<{ [propName: string]: any } | null>(null);
+
+  readonly motionBlur = input<number | 'disabled'>(DEFAULT_MOTION_BLUR);
+
+  readonly maxMotionBlur = input<number>(DEFAULT_MAX_MOTION_BLUR);
+
+  readonly motionBlurEnabled = input<boolean>(DEFAULT_MOTION_BLUR_ENABLED);
+
+  public readonly actualClasses: Signal<{ [cName: string]: boolean }>;
+
+  public readonly containerClasses: Signal<{ [cName: string]: boolean }>;
+
+  public readonly thumbGradientPositions = signal<GradientColorPositions>([0, 0]);
+
+  public readonly thumbSize = signal<number>(0);
+
+  public readonly scrollbarHorizontalShow = signal<boolean>(false);
+
+  public readonly scrollbarVerticalShow = signal<boolean>(false);
+
+  public readonly preparedSignal = signal<boolean>(false);
+
+  public readonly langTextDir = signal<TextDirection>(TextDirections.LTR);
+
+  public readonly listStyles = signal<{ perspectiveOrigin: string }>({ perspectiveOrigin: 'center' });
+
+  private _scrollBox = new ScrollBox();
+
+  get host() {
+    return this.scrollViewport()?.nativeElement;
+  }
+
+  private _$scrollbarScroll = new Subject<boolean>();
+  readonly $scrollbarScroll = this._$scrollbarScroll.asObservable();
+
+  private _prepared = false;
+  set prepared(v: boolean) {
+    if (this._prepared !== v) {
+      this._prepared = v;
+      this.preparedSignal.set(v);
+    }
+  }
+
+  protected override setX(x: number, snap: boolean = true, normalize: boolean = true) {
+    if (x !== undefined && !Number.isNaN(x)) {
+      this.updateDirectionX(x, this._x);
+
+      this._x = this._actualX = x;
+
+      const overridden = normalize ? this.normalizeScrollSize() : false;
+
+      this.refreshCoordinate(this._x, this._y);
+
+      if (!overridden) {
+        this.measureVelocity();
+      }
+
+      this.updateScrollBar(false);
+
+      this.recalculatePerspective();
+
+      if (snap) {
+        this.checkIntersectionComponent();
+      }
+    }
+  }
+
+  protected override setY(y: number, snap: boolean = true, normalize: boolean = true) {
+    if (y !== undefined && !Number.isNaN(y)) {
+      this.updateDirectionY(y, this._y);
+
+      this._y = this._actualY = y;
+
+      const overridden = normalize ? this.normalizeScrollSize() : false;
+
+      this.refreshCoordinate(this._x, this._y);
+
+      if (!overridden) {
+        this.measureVelocity();
+      }
+
+      this.updateScrollBar(true);
+
+      this.recalculatePerspective();
+
+      if (snap) {
+        this.checkIntersectionComponent();
+      }
+    }
+  }
+
+  override set startLayoutOffsetX(v: number) {
+    if (this._startLayoutOffsetX !== v) {
+      this._startLayoutOffsetX = v;
+
+      this.refreshCoordinate(this._x, this._y);
+
+      this.recalculatePerspective();
+    }
+  }
+  override get startLayoutOffsetX() { return this._startLayoutOffsetX; }
+
+  override set startLayoutOffsetY(v: number) {
+    if (this._startLayoutOffsetY !== v) {
+      this._startLayoutOffsetY = v;
+
+      this.refreshCoordinate(this._x, this._y);
+
+      this.recalculatePerspective();
+    }
+  }
+  override get startLayoutOffsetY() { return this._startLayoutOffsetY; }
+
+  readonly viewInitialized = signal<boolean>(false);
+
+  private _isScrollbarUserAction: boolean = false;
+  get isScrollbarUserAction() {
+    return this._isScrollbarUserAction;
+  }
+
+  protected _$resizeViewport = new Subject<ISize>();
+  readonly $resizeViewport = this._$resizeViewport.asObservable();
+
+  protected _$resizeContent = new Subject<ISize>();
+  readonly $resizeContent = this._$resizeContent.asObservable();
+
+  protected _filterId: string;
+
+  protected _filter: string;
+
+  constructor() {
+    super();
+
+    this._filterId = `${this._service.id}-${MOTION_BLUR}`;
+    this._filter = `url(#${this._filterId})`;
+
+    const $filter = toObservable(this.filter),
+      $motionBlur = toObservable(this.motionBlur),
+      $maxMotionBlur = toObservable(this.maxMotionBlur),
+      $motionBlurEnabled = toObservable(this.motionBlurEnabled);
+
+    const $scrollbarScroll = this.$scrollbarScroll;
+    $scrollbarScroll.pipe(
+      takeUntilDestroyed(),
+      debounceTime(50),
+      tap(() => {
+        this.dropVelocity();
+        this.fireScrollEvent(false);
+      }),
+    ).subscribe();
+
+    const $averageVelocityX = this.$averageVelocityX,
+      $averageVelocityY = this.$averageVelocityY;
+    combineLatest([$averageVelocityX, $averageVelocityY, $filter, $motionBlurEnabled, $motionBlur, $maxMotionBlur]).pipe(
+      takeUntilDestroyed(),
+      filter(([, , , f, e, mb]) => !!f && (!!e && mb !== 0)),
+      tap(([x, y, filter, , mb, mbMax]) => {
+        const _x = x * (mb as number), valueX = _x > mbMax ? mbMax : _x,
+          _y = y * (mb as number), valueY = _y > mbMax ? mbMax : _y;
+        filter!.nativeElement.setStdDeviation(x * valueX, y * valueY);
+      }),
+      debounceTime(50),
+      tap(([, , filter, ,]) => {
+        filter!.nativeElement.setStdDeviation(0, 0);
+      }),
+    ).subscribe();
+
+    this._service.$langTextDir.pipe(
+      tap(v => {
+        takeUntilDestroyed(this._destroyRef),
+          this.langTextDir.set(v);
+      })
+    ).subscribe();
+
+    const $prepare = toObservable(this.preparedSignal);
+    $prepare.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      tap(() => {
+        this.updateScrollBarHandler(false, true, false, true);
+        this.updateScrollBarHandler(true, true, false, true);
+      }),
+    ).subscribe();
+
+    const $leftOffset = toObservable(this.leftOffset),
+      $rightOffset = toObservable(this.rightOffset),
+      $topOffset = toObservable(this.topOffset),
+      $bottomOffset = toObservable(this.bottomOffset),
+      $scrollbarMinSize = toObservable(this.scrollbarMinSize),
+      $thumbSize = toObservable(this.thumbSize);
+
+    from([$rightOffset, $leftOffset, $thumbSize, $scrollbarMinSize]).pipe(
+      takeUntilDestroyed(),
+      debounceTime(0),
+      tap(() => {
+        this.updateScrollBar(false);
+      }),
+    ).subscribe();
+
+    from([$bottomOffset, $topOffset, $thumbSize, $scrollbarMinSize]).pipe(
+      takeUntilDestroyed(),
+      debounceTime(0),
+      tap(() => {
+        this.updateScrollBar(true);
+      }),
+    ).subscribe();
+
+    const $updateScrollBarHorizontal = this.$updateScrollBarHorizontal,
+      $updateScrollBarVertical = this.$updateScrollBarVertical;
+
+    $updateScrollBarHorizontal.pipe(
+      takeUntilDestroyed(this._destroyRef),
+      debounceTime(0),
+      tap(() => {
+        this.updateScrollBarHandler(false, !this._isScrollbarUserAction);
+      }),
+    ).subscribe();
+
+    $updateScrollBarVertical.pipe(
+      takeUntilDestroyed(this._destroyRef),
+      debounceTime(0),
+      tap(() => {
+        this.updateScrollBarHandler(true, !this._isScrollbarUserAction);
+      }),
+    ).subscribe();
+
+    effect(() => {
+      const grabbing = this.grabbing();
+      this._service.grabbing = grabbing;
+    });
+
+    this.actualClasses = computed(() => {
+      const classes = this.classes(), direction = this.direction(), filtered = this.motionBlurEnabled();
+      return { ...classes, [direction]: true, grabbing: this.grabbing(), filtered };
+    });
+
+    this.containerClasses = computed(() => {
+      const { width: contentWidth, height: contentHeight } = this.contentBounds(),
+        { width, height } = this.viewportBounds(),
+        overlappingScrollbar = this.overlappingScrollbar(),
+        viewportWidth = width,
+        viewportHeight = height,
+        scrollableX = contentWidth > viewportWidth,
+        scrollableY = contentHeight > viewportHeight,
+        scrollable = scrollableX || scrollableY;
+      return {
+        [this.direction()]: true, grabbing: this.grabbing(), enabled: this.scrollbarEnabled(),
+        scrollable, scrollableX, scrollableY, overlapping: overlappingScrollbar,
+      };
+    });
+
+    effect(() => {
+      const viewInitialized = this.viewInitialized();
+      if (viewInitialized) {
+        this.updateScrollBarHandler(false);
+        this.updateScrollBarHandler(true);
+      }
+    });
+  }
+
+  private recalculatePerspective() {
+    const scrollWidth = this.scrollLeft - this._startLayoutOffsetX,
+      scrollHeight = this.scrollTop - this._startLayoutOffsetX,
+      { width, height } = this.viewportBounds();
+    this.listStyles.set({
+      perspectiveOrigin: `${scrollWidth + width * .5}${PX} ${scrollHeight + height * .5}${PX}`
+    });
+  }
+
+  protected override onResizeViewport() {
+    const viewport = this.scrollViewport()?.nativeElement;
+    if (!!viewport) {
+      const bounds: ISize = { width: viewport.offsetWidth, height: viewport.offsetHeight }, b = this.viewportBounds();
+      if (bounds.width === b.width && bounds.height === b.height) {
+        return;
+      }
+      this.viewportBounds.set(bounds);
+      this.updateScrollBar(false);
+      this.updateScrollBar(true);
+      this._$resizeViewport.next(bounds);
+    }
+  }
+
+  protected override onResizeContent(width: number | null = null, height: number | null = null) {
+    const content = this.scrollContent()?.nativeElement;
+    if (!!content) {
+      const bounds: ISize = {
+        width: width ?? content.offsetWidth,
+        height: height ?? content.offsetHeight
+      }, b = this.contentBounds();
+      if (width === null && height === null && bounds.width === b.width && bounds.height === b.height) {
+        return;
+      }
+      this.contentBounds.set(bounds);
+      this.updateScrollBar(false);
+      this.updateScrollBar(true);
+      this._$resizeContent.next(bounds);
+    }
+  }
+
+  private updateScrollBarHandler(isVertical: boolean, update: boolean = false, blending: boolean = true, fireUpdate: boolean = false) {
+    const viewportBounds = this.viewportBounds(),
+      contentBounds = this.contentBounds(),
+      startOffset = isVertical ? this.topOffset() : this.leftOffset(),
+      endOffset = isVertical ? this.bottomOffset() : this.rightOffset(),
+      {
+        thumbSize,
+        thumbPosition,
+        thumbGradientPositions,
+      } = this._scrollBox.calculateScroll({
+        direction: isVertical ? ScrollerDirection.VERTICAL : ScrollerDirection.HORIZONTAL,
+        viewportWidth: viewportBounds.width,
+        viewportHeight: viewportBounds.height,
+        contentWidth: contentBounds.width,
+        contentHeight: contentBounds.height,
+        startOffset,
+        endOffset,
+        positionX: this._x,
+        positionY: this._y,
+        minSize: this.scrollbarMinSize(),
+      });
+
+    this.thumbGradientPositions.set(thumbGradientPositions);
+    this.thumbSize.set(thumbSize);
+    const actualThumbPosition = thumbPosition < startOffset ? startOffset : thumbPosition;
+    if (update) {
+      (isVertical ? this.scrollBarVertical : this.scrollBarHorizontal)?.scroll({
+        [isVertical ? TOP_PROP_NAME : LEFT_PROP_NAME]: actualThumbPosition, fireUpdate, behavior: BEHAVIOR_INSTANT,
+        userAction: false, blending,
+      });
+    }
+    if (isVertical) {
+      this.scrollbarVerticalShow.set(this.scrollableY && this.scrollbarEnabled());
+    } else {
+      this.scrollbarHorizontalShow.set(this.scrollableX && this.scrollbarEnabled());
+    }
+  };
+
+  ngAfterViewInit() {
+    this.viewInitialized.set(true);
+  }
+
+  override tick() {
+    super.tick();
+
+    this.scrollBarHorizontal?.tick();
+    this.scrollBarVertical?.tick();
+  }
+
+  private updateScrollBar(isVertical: boolean) {
+    (isVertical ? this._$updateScrollBarVertical : this._$updateScrollBarHorizontal).next();
+  }
+
+  refreshScrollbar() {
+    this.updateScrollBarHandler(true, true, false, false);
+    this.updateScrollBarHandler(false, true, false, false);
+  }
+
+  protected onDragStartHorizontal() {
+    this.onDragStart();
+
+    this.stopScrollbar(false);
+
+    this._isScrollbarUserAction = false;
+
+    this.updateScrollBar(false);
+  }
+
+  protected onDragStartVertical() {
+    this.onDragStart();
+
+    this.stopScrollbar(true);
+
+    this._isScrollbarUserAction = false;
+
+    this.updateScrollBar(true);
+  }
+
+  override reset() {
+    super.reset();
+    this.totalWidth = this.totalHeight = 0;
+    this.onResizeContent(0, 0);
+    this.stopScrollbar(false);
+    this.stopScrollbar(true);
+    this.refresh(true, true);
+    this.prepared = false;
+  }
+
+  refresh(fireUpdate: boolean = false, updateScrollbar: boolean = true) {
+    if (updateScrollbar) {
+      this.stopScrolling();
+    }
+
+    this.scrollLimits();
+
+    this.refreshCoordinate(this._x, this._y);
+
+    if (updateScrollbar) {
+      this.updateScrollBarHandler(true, false);
+      this.updateScrollBarHandler(false, false);
+      this.emitScrollableEvent();
+    }
+
+    if (fireUpdate) {
+      this.fireScrollEvent(false);
+    }
+  }
+
+  snapIfNeed(animated = true) {
+    this.snapWithInitialForceIfNecessary(null, null, animated, true);
+  }
+
+  startScrollTo() {
+    this.stopScrollbar(false);
+    this.stopScrollbar(true);
+    this.stopScrolling(true);
+    this._scrollDirectionX.clear();
+    this._scrollDirectionY.clear();
+    this.dropVelocity();
+    this._isScrollsTo = true;
+  }
+
+  finishedScrollTo() {
+    this._isScrollsTo = false;
+    this._scrollDirectionX.clear();
+    this._scrollDirectionY.clear();
+    this.dropVelocity();
+    this.checkIntersectionComponent();
+    this.fireScrollEvent(true);
+  }
+
+  scrollTo(params: IScrollToParams): number {
+    const userAction = params?.userAction ?? true;
+    if (userAction) {
+      this._isScrollbarUserAction = false;
+      this.scrollBarHorizontal?.stopScrolling();
+      this.scrollBarVertical?.stopScrolling();
+    }
+    return this.scroll({ ...params, userAction: userAction });
+  }
+
+  stopScrollbar(isVertical: boolean) {
+    const scrollBar = isVertical ? this.scrollBarVertical : this.scrollBarHorizontal;
+    if (!!scrollBar) {
+      scrollBar.stopScrolling();
+      this.alignPosition();
+      this.dropVelocity();
+    }
+  }
+
+  private dropVelocity() {
+    this._velocitiesX = [0];
+    this._$velocityX.next(0);
+    this._$averageVelocityX.next(0);
+
+    this._velocitiesY = [0];
+    this._$velocityY.next(0);
+    this._$averageVelocityY.next(0);
+  }
+
+  protected override stopMoving() {
+    super.stopMoving();
+    this.dropVelocity();
+  }
+
+  protected override onAnimationComplete(position: number) {
+    this.dropVelocity();
+    this._$scrollEnd.next(false);
+  }
+
+  onScrollBarDragHandler(event: IScrollBarDragEvent) {
+    const { position, isVertical, min, max, userAction } = event;
+    this._isScrollbarUserAction = userAction;
+    if (!userAction) {
+      return;
+    }
+    this._$scrollbarScroll.next(true);
+    this.stopScrolling(true);
+    const {
+      position: absolutePosition,
+    } = this._scrollBox.getScrollPositionByScrollBar({
+      scrollSize: isVertical ? this.scrollHeight : this.scrollWidth,
+      position,
+    });
+
+    this.scrollTo({
+      [isVertical ? TOP : LEFT]: absolutePosition, behavior: INSTANT,
+      blending: false, userAction: true, fireUpdate: true,
+    });
+    this.emitScrollableEvent();
+    this._service.update(false);
+  }
+
+  protected onScrollBarDragEndHandler(event: IScrollBarDragEvent) {
+    const { position, min, max, isVertical, userAction } = event;
+    this._isScrollbarUserAction = userAction;
+    if (!userAction) {
+      return;
+    }
+    this._isScrollbarUserAction = false;
+    this.dropVelocity();
+    this._service.update(false);
+    const isEdge = this.fireUpdateIfEdgesDetected(isVertical, position, min, max, true, true);
+    if (!isEdge) {
+      this.alignPosition();
+    }
+    (isVertical ? this._scrollDirectionY : this._scrollDirectionX).clear();
+    this._$scrollbarScroll.next(true);
+    this.fireScrollEvent(true);
+  }
+
+  private fireUpdateIfEdgesDetected(isVertical: boolean, position: number, min: number = 0, max: number = 1, animation: boolean = false, userAction: boolean = false) {
+    if (userAction && animation) {
+      if (position <= min) {
+        if (isVertical) {
+          this._service.scrollToTop();
+        } else {
+          this._service.scrollToLeft();
+        }
+        return true;
+      } else if (position >= max) {
+        if (isVertical) {
+          this._service.scrollToBottom();
+        } else {
+          this._service.scrollToRight();
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+}
