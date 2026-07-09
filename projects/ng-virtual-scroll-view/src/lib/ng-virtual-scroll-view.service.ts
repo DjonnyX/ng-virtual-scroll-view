@@ -70,13 +70,10 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   readonly $langTextDir = this._$langTextDir.asObservable();
   get langTextDir() { return this._$langTextDir.getValue(); }
 
-  private _langTextDir: TextDirection = TextDirections.LTR;
   set langTextDir(v: TextDirection) {
-    if (this._langTextDir === v) {
+    if (this.langTextDir === v) {
       return;
     }
-
-    this._langTextDir = v;
 
     this._$langTextDir.next(v);
   }
@@ -85,13 +82,10 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   readonly $grabbing = this._$grabbing.asObservable();
   get grabbing() { return this._$grabbing.getValue(); }
 
-  private _grabbing: boolean = false;
   set grabbing(v: boolean) {
-    if (this._grabbing === v) {
+    if (this.grabbing === v) {
       return;
     }
-
-    this._grabbing = v;
 
     this._$grabbing.next(v);
   }
@@ -100,13 +94,10 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   readonly $clickPressed = this._$clickPressed.asObservable();
   get clickPressed() { return this._$clickPressed.getValue(); }
 
-  private _clickPressed: boolean = false;
   set clickPressed(v: boolean) {
-    if (this._clickPressed === v) {
+    if (this.clickPressed === v) {
       return;
     }
-
-    this._clickPressed = v;
 
     this._$clickPressed.next(v);
   }
@@ -115,20 +106,17 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   readonly $isGrabbing = this._$isGrabbing.asObservable();
   get isGrabbing() { return this._$isGrabbing.getValue(); }
 
+  private _$scrollBarSize = new BehaviorSubject<number>(0);
+  readonly $scrollBarSize = this._$scrollBarSize.asObservable();
   get scrollBarSize() { return this._$scrollBarSize.getValue(); }
 
-  private _scrollBarSize: number = 0;
   set scrollBarSize(v: number) {
-    if (this._scrollBarSize === v) {
+    if (this.scrollBarSize === v) {
       return;
     }
 
-    this._scrollBarSize = v;
-
     this._$scrollBarSize.next(v);
   }
-  private _$scrollBarSize = new BehaviorSubject<number>(this._scrollBarSize);
-  readonly $scrollBarSize = this._$scrollBarSize.asObservable();
 
   private _$intersectionElementBySnapToItemAlign = new BehaviorSubject<Id | null>(null);
   readonly $intersectionElementBySnapToItemAlign = this._$intersectionElementBySnapToItemAlign.asObservable();
@@ -137,13 +125,10 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   readonly $clickDistance = this._$clickDistance.asObservable();
   get clickDistance() { return this._$clickDistance.getValue(); }
 
-  private _clickDistance: number = DEFAULT_CLICK_DISTANCE;
   set clickDistance(v: number) {
-    if (this._clickDistance === v) {
+    if (this.clickDistance === v) {
       return;
     }
-
-    this._clickDistance = v;
 
     this._$clickDistance.next(v);
   }

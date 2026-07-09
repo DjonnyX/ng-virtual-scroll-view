@@ -1,6 +1,7 @@
 @let filtered = motionBlurEnabled();
 @let prepared = preparedSignal();
-<div localeSensitive [langTextDir]="langTextDir()" [listDir]="direction()" class="ngvs__container"
+@let textDir = langTextDir();
+<div localeSensitive [langTextDir]="textDir" [listDir]="direction()" class="ngvs__container"
     [ngClass]="containerClasses()">
     <svg part="viewport" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
         xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -26,7 +27,7 @@
                 [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()" [loading]="loading()"
                 [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositionsVertical()" [prepared]="prepared"
                 [interactive]="scrollbarInteractive()" [show]="scrollbarVerticalEnabled() && scrollbarEnabled() && prepared"
-                [startOffset]="topOffset()" [langTextDir]="langTextDir()" [endOffset]="bottomOffset()"
+                [startOffset]="topOffset()" [langTextDir]="textDir" [endOffset]="bottomOffset()"
                 [overscrollEnabled]="overscrollEnabled()" [scrollBehavior]="scrollBehavior()"
                 [scrollbarMinSize]="scrollbarMinSize()" (onDrag)="onScrollBarDragHandler($event)"
                 (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
@@ -37,7 +38,7 @@
                 [loading]="loading()" [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositionsHorizontal()"
                 [prepared]="prepared" [interactive]="scrollbarInteractive()"
                 [show]="scrollbarHorizontalEnabled() && scrollbarEnabled() && prepared" [startOffset]="leftOffset()"
-                [langTextDir]="langTextDir()" [endOffset]="rightOffset()" [overscrollEnabled]="overscrollEnabled()"
+                [langTextDir]="textDir" [endOffset]="rightOffset()" [overscrollEnabled]="overscrollEnabled()"
                 [scrollBehavior]="scrollBehavior()" [scrollbarMinSize]="scrollbarMinSize()"
                 (onDrag)="onScrollBarDragHandler($event)" (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
         }

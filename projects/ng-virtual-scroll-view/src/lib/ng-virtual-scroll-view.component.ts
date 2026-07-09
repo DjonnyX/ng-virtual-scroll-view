@@ -23,7 +23,7 @@ import {
   SpreadingMode,
 } from './types';
 import {
-  Alignments, Directions, SpreadingModes,
+  Alignments, Directions, SpreadingModes, TextDirections,
 } from './enums';
 import { ScrollEvent, toggleClassName } from './utils';
 import { isDirection } from './utils/is-direction';
@@ -743,7 +743,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
   private _langTextDir = {
     transform: (v: TextDirection) => {
-      const valid = validateString(v);
+      const valid = validateString(v) && (v === TextDirections.LTR || v === TextDirections.RTL);
       if (!valid) {
         console.error('The "langTextDir" parameter must be of type `string`.');
         return DEFAULT_LANG_TEXT_DIR;
@@ -1006,10 +1006,13 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       }),
     ).subscribe();
 
-    effect(() => {
-      const dir = this.langTextDir() as TextDirection;
-      this._service.langTextDir = dir;
-    });
+    const $langTextDir = toObservable(this.langTextDir);
+    $langTextDir.pipe(
+      takeUntilDestroyed(),
+      tap(v => {
+        this._service.langTextDir = v;
+      }),
+    ).subscribe();
 
     effect(() => {
       const dist = this.clickDistance();

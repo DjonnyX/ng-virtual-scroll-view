@@ -251,10 +251,10 @@ export class NgScrollerComponent extends NgScrollView {
     ).subscribe();
 
     this._service.$langTextDir.pipe(
+      takeUntilDestroyed(this._destroyRef),
       tap(v => {
-        takeUntilDestroyed(this._destroyRef),
-          this.langTextDir.set(v);
-      })
+        this.langTextDir.set(v);
+      }),
     ).subscribe();
 
     const $prepare = toObservable(this.preparedSignal);

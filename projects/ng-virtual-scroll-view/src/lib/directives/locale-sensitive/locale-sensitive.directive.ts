@@ -36,7 +36,7 @@ export class LocaleSensitiveDirective {
       takeUntilDestroyed(),
       tap(([dir, listDir]) => {
         const element = this._elementRef.nativeElement as HTMLElement,
-          isVertical = isDirection(listDir, ScrollerDirection.VERTICAL);
+          isVertical = isDirection(listDir, ScrollerDirection.VERTICAL) || isDirection(listDir, ScrollerDirection.BOTH);
         element.setAttribute(DIR, isVertical ? dir : TextDirections.LTR);
         if (dir === TextDirections.RTL && isVertical) {
           element.style.textAlign = RIGHT;
