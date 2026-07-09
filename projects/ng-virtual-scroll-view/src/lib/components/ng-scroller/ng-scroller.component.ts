@@ -90,9 +90,9 @@ export class NgScrollerComponent extends NgScrollView {
 
   public readonly thumbSize = signal<number>(0);
 
-  public readonly scrollbarHorizontalShow = signal<boolean>(false);
+  public readonly scrollbarHorizontalEnabled = signal<boolean>(this.scrollableX);
 
-  public readonly scrollbarVerticalShow = signal<boolean>(false);
+  public readonly scrollbarVerticalEnabled = signal<boolean>(this.scrollableY);
 
   public readonly preparedSignal = signal<boolean>(false);
 
@@ -376,39 +376,45 @@ export class NgScrollerComponent extends NgScrollView {
 
   private updateScrollBarHandler(isVertical: boolean, update: boolean = false, blending: boolean = true, fireUpdate: boolean = false) {
     const viewportBounds = this.viewportBounds(),
-      contentBounds = this.contentBounds(),
-      startOffset = isVertical ? this.topOffset() : this.leftOffset(),
-      endOffset = isVertical ? this.bottomOffset() : this.rightOffset(),
-      {
-        thumbSize,
-        thumbPosition,
-        thumbGradientPositions,
-      } = this._scrollBox.calculateScroll({
-        direction: isVertical ? ScrollerDirection.VERTICAL : ScrollerDirection.HORIZONTAL,
-        viewportWidth: viewportBounds.width,
-        viewportHeight: viewportBounds.height,
-        contentWidth: contentBounds.width,
-        contentHeight: contentBounds.height,
-        startOffset,
-        endOffset,
-        positionX: this._x,
-        positionY: this._y,
-        minSize: this.scrollbarMinSize(),
-      });
+      direction = this.direction(),
+      horizontalEnabled = direction === ScrollerDirection.BOTH || direction === ScrollerDirection.HORIZONTAL,
+      verticalEnabled = direction === ScrollerDirection.BOTH || direction === ScrollerDirection.VERTICAL;
+    if ((isVertical && verticalEnabled) || (!isVertical && horizontalEnabled)) {
+      const contentBounds = this.contentBounds(),
+        startOffset = isVertical ? this.topOffset() : this.leftOffset(),
+        endOffset = isVertical ? this.bottomOffset() : this.rightOffset(),
+        {
+          thumbSize,
+          thumbPosition,
+          thumbGradientPositions,
+        } = this._scrollBox.calculateScroll({
+          direction: isVertical ? ScrollerDirection.VERTICAL : ScrollerDirection.HORIZONTAL,
+          viewportWidth: viewportBounds.width,
+          viewportHeight: viewportBounds.height,
+          contentWidth: contentBounds.width,
+          contentHeight: contentBounds.height,
+          startOffset,
+          endOffset,
+          positionX: this._x,
+          positionY: this._y,
+          minSize: this.scrollbarMinSize(),
+        });
 
-    this.thumbGradientPositions.set(thumbGradientPositions);
-    this.thumbSize.set(thumbSize);
-    const actualThumbPosition = thumbPosition < startOffset ? startOffset : thumbPosition;
-    if (update) {
-      (isVertical ? this.scrollBarVertical : this.scrollBarHorizontal)?.scroll({
-        [isVertical ? TOP_PROP_NAME : LEFT_PROP_NAME]: actualThumbPosition, fireUpdate, behavior: BEHAVIOR_INSTANT,
-        userAction: false, blending,
-      });
+      this.thumbGradientPositions.set(thumbGradientPositions);
+      this.thumbSize.set(thumbSize);
+      const actualThumbPosition = thumbPosition < startOffset ? startOffset : thumbPosition;
+      if (update) {
+        (isVertical ? this.scrollBarVertical : this.scrollBarHorizontal)?.scroll({
+          [isVertical ? TOP_PROP_NAME : LEFT_PROP_NAME]: actualThumbPosition, fireUpdate, behavior: BEHAVIOR_INSTANT,
+          userAction: false, blending,
+        });
+      }
     }
+
     if (isVertical) {
-      this.scrollbarVerticalShow.set(this.scrollableY && this.scrollbarEnabled());
+      this.scrollbarVerticalEnabled.set(verticalEnabled && this.scrollableY && this.scrollbarEnabled());
     } else {
-      this.scrollbarHorizontalShow.set(this.scrollableX && this.scrollbarEnabled());
+      this.scrollbarHorizontalEnabled.set(horizontalEnabled && this.scrollableX && this.scrollbarEnabled());
     }
   };
 

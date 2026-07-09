@@ -9,12 +9,39 @@
 
   <div class="vl-section">
     <div class="vl-section__container">
-      <h2>Virtual scroll view</h2>
-      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="both" [scrollbarThumbRenderer]="customScrollBarThumb"
-        [scrollbarThumbParams]="customScrollBarThumbParams" [motionBlurEnabled]="motionBlurEnabled"
-        [scrollbarEnabled]="true" [scrollbarThickness]="6" (onScrollReachStart)="onScrollReachStartHandler()"
-        (onScrollReachEnd)="onScrollReachEndHandler()">
-        <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000" [class.grabbing]="scrollView.$grabbing | async"></div>
+      <h2>Virtual scroll view (both directions)</h2>
+      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="both"
+        [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
+        [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6"
+        (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
+        <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
+          [class.grabbing]="scrollView.$grabbing | async"></div>
+      </ng-virtual-scroll-view>
+    </div>
+  </div>
+
+  <div class="vl-section">
+    <div class="vl-section__container">
+      <h2>Virtual scroll view (vertical)</h2>
+      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="vertical"
+        [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
+        [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6"
+        (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
+        <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
+          [class.grabbing]="scrollView.$grabbing | async"></div>
+      </ng-virtual-scroll-view>
+    </div>
+  </div>
+
+  <div class="vl-section">
+    <div class="vl-section__container">
+      <h2>Virtual scroll view (horizontal)</h2>
+      <ng-virtual-scroll-view #scrollView class="scroll-view" direction="horizontal"
+        [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
+        [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6"
+        (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
+        <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
+          [class.grabbing]="scrollView.$grabbing | async"></div>
       </ng-virtual-scroll-view>
     </div>
   </div>
