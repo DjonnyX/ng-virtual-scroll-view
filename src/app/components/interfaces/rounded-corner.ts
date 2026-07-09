@@ -1,6 +1,6 @@
 /**
  * RoundedCorner
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/types/rounded-corner.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/types/rounded-corner.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

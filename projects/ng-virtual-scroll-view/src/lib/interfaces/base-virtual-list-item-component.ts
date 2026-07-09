@@ -5,7 +5,7 @@ import { IRenderVirtualListItem } from '../models/render-item.model';
 
 /**
  * IBaseVirtualListItemComponent
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/interfaces/base-virtual-scroll-view-item-component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/interfaces/base-virtual-scroll-view-item-component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

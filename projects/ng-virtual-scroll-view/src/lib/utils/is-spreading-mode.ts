@@ -6,7 +6,7 @@ const NORMAL_ALIASES = [SpreadingModes.NORMAL, 'normal'],
 
 /**
  * Determines the display mode of list items.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/utils/is-select-mode.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/utils/is-select-mode.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

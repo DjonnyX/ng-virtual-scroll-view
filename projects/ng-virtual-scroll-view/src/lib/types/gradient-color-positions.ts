@@ -2,7 +2,7 @@ import { GradientColorPosition } from "./gradient-color-position";
 
 /**
  * GradientColorPositions
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/types/gradient-positions.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/types/gradient-positions.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
