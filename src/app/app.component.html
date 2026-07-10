@@ -22,6 +22,19 @@
 
   <div class="vl-section">
     <div class="vl-section__container">
+      <h2>Both directions and right-to-left</h2>
+      <ng-virtual-scroll-view #scrollView1 class="scroll-view" direction="both" langTextDir="rtl"
+        [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"
+        [motionBlurEnabled]="motionBlurEnabled" [scrollbarEnabled]="true" [scrollbarThickness]="6"
+        (onScrollReachStart)="onScrollReachStartHandler()" (onScrollReachEnd)="onScrollReachEndHandler()">
+        <div class="scroll-view__background" [style.width.px]="3000" [style.height.px]="3000"
+          [class.grabbing]="scrollView1.$grabbing | async"></div>
+      </ng-virtual-scroll-view>
+    </div>
+  </div>
+
+  <div class="vl-section">
+    <div class="vl-section__container">
       <h2>Vertical</h2>
       <ng-virtual-scroll-view #scrollView2 class="scroll-view" direction="vertical"
         [scrollbarThumbRenderer]="customScrollBarThumb" [scrollbarThumbParams]="customScrollBarThumbParams"

@@ -2,7 +2,7 @@ import { Component, computed, effect, ElementRef, input, output, Signal, signal,
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { combineLatest, debounceTime, filter, from, Subject, tap } from 'rxjs';
 import { ScrollBox } from './utils';
-import { Id, TextDirection } from '../../types';
+import { Id } from '../../types';
 import { NgScrollBarComponent } from "../ng-scroll-bar/ng-scroll-bar.component";
 import { GradientColorPositions } from '../../types/gradient-color-positions';
 import {
@@ -10,7 +10,6 @@ import {
   DEFAULT_SCROLLBAR_ENABLED, DEFAULT_SCROLLBAR_INTERACTIVE, DEFAULT_SCROLLBAR_MIN_SIZE, DEFAULT_SCROLLBAR_THICKNESS, LEFT_PROP_NAME,
   PX, SCROLLER_SCROLL, TOP_PROP_NAME,
 } from '../../const';
-import { TextDirections } from '../../enums';
 import { IScrollToParams, NgScrollView, SCROLL_VIEW_INVERSION } from '../ng-scroll-view';
 import { IScrollBarDragEvent } from '../ng-scroll-bar/interfaces';
 import { SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SCROLL_VIEW_OVERSCROLL_ENABLED } from '../ng-scroll-view/const';
@@ -99,8 +98,6 @@ export class NgScrollerComponent extends NgScrollView {
   public readonly scrollbarVerticalEnabled = signal<boolean>(this.scrollableY);
 
   public readonly preparedSignal = signal<boolean>(false);
-
-  public readonly langTextDir = signal<TextDirection>(TextDirections.LTR);
 
   public readonly listStyles = signal<{ perspectiveOrigin: string }>({ perspectiveOrigin: 'center' });
 
@@ -247,13 +244,6 @@ export class NgScrollerComponent extends NgScrollView {
       debounceTime(50),
       tap(([, , filter, ,]) => {
         filter!.nativeElement.setStdDeviation(0, 0);
-      }),
-    ).subscribe();
-
-    this._service.$langTextDir.pipe(
-      takeUntilDestroyed(this._destroyRef),
-      tap(v => {
-        this.langTextDir.set(v);
       }),
     ).subscribe();
 

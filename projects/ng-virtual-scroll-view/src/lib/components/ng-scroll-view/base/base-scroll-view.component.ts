@@ -1,11 +1,12 @@
 import {
-    Component, computed, DestroyRef, ElementRef, inject, input, Signal, signal, viewChild,
+    Component, DestroyRef, ElementRef, inject, input, signal, viewChild,
 } from '@angular/core';
-import { Subject, tap } from 'rxjs';
+import { Subject } from 'rxjs';
 import { ScrollerDirection, ScrollerDirections } from '../enums';
 import { ISize } from '../../../interfaces';
 import { SCROLL_VIEW_INVERSION, SCROLL_VIEW_OVERSCROLL_ENABLED, SCROLL_VIEW_SERVICE } from '../const';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TextDirection } from '../../../types';
+import { TextDirections } from '../../../enums';
 
 /**
  * BaseScrollView
@@ -25,6 +26,8 @@ export class BaseScrollView {
     readonly scrollViewport = viewChild<ElementRef<HTMLDivElement>>('scrollViewport');
 
     readonly direction = input<ScrollerDirections>(ScrollerDirection.BOTH);
+
+    readonly langTextDir = input<TextDirection>(TextDirections.LTR);
 
     readonly leftOffset = input<number>(0);
 

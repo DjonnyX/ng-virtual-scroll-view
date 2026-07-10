@@ -18,7 +18,7 @@ import {
 import { calculateDirection, matrix3d } from './utils';
 import { BaseScrollView } from './base/base-scroll-view.component';
 import { IAnimationParams, IPoint, IScrollingSettings, ISize } from '../../interfaces';
-import { SnapToItemAligns } from '../../enums';
+import { SnapToItemAligns, TextDirections } from '../../enums';
 import { Id, SnappingDistance, SnapToItemAlign } from '../../types';
 import { parseFloatOrPersentageValue } from '../../utils/parse-float-or-persentage-value';
 import { isPercentageValue } from '../../utils/is-persentage-value';
@@ -215,6 +215,8 @@ export class NgScrollView extends BaseScrollView {
 
     get animated() { return this.animatedX || this.animatedY; }
 
+    protected _horizontalAxisInvertion: Signal<boolean>;
+
     protected _horizontalAxisEnabled: Signal<boolean>;
 
     protected _verticalAxisEnabled: Signal<boolean>;
@@ -228,6 +230,11 @@ export class NgScrollView extends BaseScrollView {
         this._horizontalAxisEnabled = computed(() => {
             const direction = this.direction();
             return direction === ScrollerDirection.BOTH || direction === ScrollerDirection.HORIZONTAL;
+        });
+
+        this._horizontalAxisInvertion = computed(() => {
+            const horizontalAxisEnabled = this._horizontalAxisEnabled(), langTextDir = this.langTextDir();
+            return horizontalAxisEnabled && langTextDir === TextDirections.RTL;
         });
 
         this._verticalAxisEnabled = computed(() => {
@@ -386,8 +393,8 @@ export class NgScrollView extends BaseScrollView {
                         this.grabbing.set(true);
                         this._startPositionX = this.x;
                         this._startPositionY = this.y;
-                        let prevClientPositionX = e.clientX,
-                            prevClientPositionY = e.clientY,
+                        let prevClientPositionX: number | null = e.clientX * (this._horizontalAxisInvertion() ? -1 : 1),
+                            prevClientPositionY: number | null = e.clientY,
                             startClientPosX = prevClientPositionX,
                             startClientPosY = prevClientPositionY,
                             offsetsX = new Array<[number, number]>(),
@@ -404,9 +411,9 @@ export class NgScrollView extends BaseScrollView {
                             }),
                             switchMap(e => {
                                 const { position: positionX, currentPos: currentPosX, endTime: endTimeX, scrollDelta: scrollDeltaX } =
-                                    this.calculatePosition(false, this._horizontalAxisEnabled(), e, inversion, startClientPosX, startTimeX, prevClientPositionX, offsetsX, velocitiesX),
+                                    this.calculatePosition(false, this._horizontalAxisEnabled(), this._horizontalAxisInvertion(), e, inversion, startClientPosX, startTimeX, prevClientPositionX, offsetsX, velocitiesX),
                                     { position: positionY, currentPos: currentPosY, endTime: endTimeY, scrollDelta: scrollDeltaY } =
-                                        this.calculatePosition(true, this._verticalAxisEnabled(), e, inversion, startClientPosY, startTimeY, prevClientPositionY, offsetsY, velocitiesY);
+                                        this.calculatePosition(true, this._verticalAxisEnabled(), false, e, inversion, startClientPosY, startTimeY, prevClientPositionY, offsetsY, velocitiesY);
                                 prevClientPositionX = currentPosX;
                                 prevClientPositionY = currentPosY;
                                 this.move(positionX, positionY, true, true, true);
@@ -539,8 +546,8 @@ export class NgScrollView extends BaseScrollView {
                         this.grabbing.set(true);
                         this._startPositionX = this.x;
                         this._startPositionY = this.y;
-                        let prevClientPositionX = e.touches[e.touches.length - 1].clientX,
-                            prevClientPositionY = e.touches[e.touches.length - 1].clientY,
+                        let prevClientPositionX: number | null = (e.touches[e.touches.length - 1].clientX) * (this._horizontalAxisInvertion() ? -1 : 1),
+                            prevClientPositionY: number | null = e.touches[e.touches.length - 1].clientY,
                             startClientPosX = prevClientPositionX,
                             startClientPosY = prevClientPositionY,
                             offsetsX = new Array<[number, number]>(),
@@ -557,9 +564,9 @@ export class NgScrollView extends BaseScrollView {
                             }),
                             switchMap(e => {
                                 const { position: positionX, currentPos: currentPosX, endTime: endTimeX, scrollDelta: scrollDeltaX } =
-                                    this.calculatePosition(false, this._horizontalAxisEnabled(), e, inversion, startClientPosX, startTimeX, prevClientPositionX, offsetsX, velocitiesX),
+                                    this.calculatePosition(false, this._horizontalAxisEnabled(), this._horizontalAxisInvertion(), e, inversion, startClientPosX, startTimeX, prevClientPositionX, offsetsX, velocitiesX),
                                     { position: positionY, currentPos: currentPosY, endTime: endTimeY, scrollDelta: scrollDeltaY } =
-                                        this.calculatePosition(true, this._verticalAxisEnabled(), e, inversion, startClientPosY, startTimeY, prevClientPositionY, offsetsY, velocitiesY);
+                                        this.calculatePosition(true, this._verticalAxisEnabled(), false, e, inversion, startClientPosY, startTimeY, prevClientPositionY, offsetsY, velocitiesY);
                                 prevClientPositionX = currentPosX;
                                 prevClientPositionY = currentPosY;
                                 this.move(positionX, positionY, true, true, true);
@@ -726,13 +733,13 @@ export class NgScrollView extends BaseScrollView {
         return false;
     }
 
-    private calculatePosition(isVertical: boolean, enabled: boolean, e: MouseEvent | TouchEvent | any, inversion: boolean, startClientPos: number, startTime: number,
+    private calculatePosition(isVertical: boolean, enabled: boolean, axisInversion: boolean, e: MouseEvent | TouchEvent | any, inversion: boolean, startClientPos: number, startTime: number,
         prevClientPosition: number | null, offsets: Array<[number, number]>, velocities: Array<[number, number]>
     ) {
         if (!enabled) {
             return { position: isVertical ? this._y : this._x, currentPos: null, endTime: Date.now(), scrollDelta: 0 };
         }
-        const currentPos = isVertical ? e.touches?.[e.touches?.length - 1]?.clientY || e.clientY : e.touches?.[e.touches?.length - 1]?.clientX || e.clientX,
+        const currentPos = (isVertical ? e.touches?.[e.touches?.length - 1]?.clientY || e.clientY : e.touches?.[e.touches?.length - 1]?.clientX || e.clientX) * (axisInversion ? -1 : 1),
             scrollSize = isVertical ? this.scrollHeight : this.scrollWidth, delta = (inversion ? -1 : 1) * (startClientPos - currentPos),
             dp = (isVertical ? this._startPositionY : this._startPositionX) + delta, position = this.isInfinity() ? dp : dp < 0 ? 0 : dp > scrollSize ? scrollSize : dp,
             endTime = Date.now(), timestamp = endTime - startTime, scrollDelta = (prevClientPosition === 0 || prevClientPosition === null) ? 0 : prevClientPosition - currentPos,
@@ -1290,7 +1297,7 @@ export class NgScrollView extends BaseScrollView {
 
     refreshCoordinate(x: number, y: number) {
         const scrollContent = this.scrollContent()?.nativeElement as HTMLDivElement;
-        scrollContent.style.transform = matrix3d((this._inversion ? 1 : -1) * x + this._startLayoutOffsetX,
+        scrollContent.style.transform = matrix3d((this._inversion ? 1 : -1) * x * (this._horizontalAxisInvertion() ? -1 : 1) + this._startLayoutOffsetX,
             (this._inversion ? 1 : -1) * y + this._startLayoutOffsetY);
     }
 

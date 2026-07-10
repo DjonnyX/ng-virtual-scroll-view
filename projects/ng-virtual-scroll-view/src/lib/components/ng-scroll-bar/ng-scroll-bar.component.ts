@@ -5,7 +5,7 @@ import { GradientColorPositions } from '../../types/gradient-color-positions';
 import { NgScrollView, SCROLL_VIEW_INVERSION } from '../ng-scroll-view';
 import { IScrollBarDragEvent, IScrollBarTemplateContext } from './interfaces';
 import {
-  DEFAULT_LANG_TEXT_DIR, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SCROLLBAR_INTERACTIVE, LEFT, POSITION, POSITION_ABSOLUTE,
+  DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SCROLLBAR_INTERACTIVE, LEFT, POSITION, POSITION_ABSOLUTE,
   POSITION_RELATIVE, RIGHT, SIZE_100_PERSENT, SIZE_AUTO, TOP, UNSET, BOTTOM, ZERO_PX,
 } from '../../const';
 import {
@@ -15,7 +15,6 @@ import { SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SCROLL_VIEW_OVERSCROLL_ENABLED }
 import { NgScrollBarService } from './ng-scroll-bar.service';
 import { NgScrollBarPublicService } from './ng-scroll-bar-public.service';
 import { ScrollbarStates } from './enums';
-import { TextDirection } from '../../types';
 import { TextDirections } from '../../enums';
 import { ScrollerDirection } from '../ng-scroll-view/enums';
 
@@ -62,8 +61,6 @@ export class NgScrollBarComponent extends NgScrollView {
   readonly scrollbarMinSize = input<number>(0);
 
   readonly prepared = input<boolean>(false);
-
-  readonly langTextDir = input<TextDirection>(DEFAULT_LANG_TEXT_DIR);
 
   readonly interactive = input<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE);
 
