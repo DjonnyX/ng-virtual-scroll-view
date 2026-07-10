@@ -19,10 +19,9 @@ import { calculateDirection, matrix3d } from './utils';
 import { BaseScrollView } from './base/base-scroll-view.component';
 import { IAnimationParams, IPoint, IScrollingSettings, ISize } from '../../interfaces';
 import { SnapToItemAligns, TextDirections } from '../../enums';
-import { Id, SnappingDistance, SnapToItemAlign } from '../../types';
+import { Id, ScrollDirection, SnappingDistance, SnapToItemAlign } from '../../types';
 import { parseFloatOrPersentageValue } from '../../utils/parse-float-or-persentage-value';
 import { isPercentageValue } from '../../utils/is-persentage-value';
-import { ScrollingDirection } from '../../utils/scrolling-direction';
 import { calculateVelocity } from './utils/calculate-velocity';
 import { ScrollerDirection } from './enums';
 
@@ -62,19 +61,27 @@ export class NgScrollView extends BaseScrollView {
 
     protected _isScrollsTo: boolean = false;
 
-    protected _scrollDirectionX = new ScrollingDirection();
+    private _$scrollDirectionX = new BehaviorSubject<ScrollDirection>(0);
+    protected $scrollDirectionX = this._$scrollDirectionX.asObservable();
+    set scrollDirectionX(v: ScrollDirection) {
+        if (this.scrollDirectionX !== v) {
+            this._$scrollDirectionX.next(v);
+        }
+    }
     get scrollDirectionX() {
-        return this._scrollDirectionX.get();
+        return this._$scrollDirectionX.getValue();
     }
 
-    get $scrollDirectionX() { return this._scrollDirectionX.$direction; }
-
-    protected _scrollDirectionY = new ScrollingDirection();
+    private _$scrollDirectionY = new BehaviorSubject<ScrollDirection>(0);
+    protected $scrollDirectionY = this._$scrollDirectionY.asObservable();
+    set scrollDirectionY(v: ScrollDirection) {
+        if (this.scrollDirectionY !== v) {
+            this._$scrollDirectionY.next(v);
+        }
+    }
     get scrollDirectionY() {
-        return this._scrollDirectionY.get();
+        return this._$scrollDirectionY.getValue();
     }
-
-    get $scrollDirectionY() { return this._scrollDirectionY.$direction; }
 
     protected _$wheel = new Subject<IWheelEvent>();
     readonly $wheel = this._$wheel.asObservable();
@@ -131,9 +138,9 @@ export class NgScrollView extends BaseScrollView {
     override get x() { return this._x; }
 
     protected setX(x: number, snap: boolean = true, normalize: boolean = true) {
-        if (x !== undefined && !Number.isNaN(x)) {
-            this.updateDirectionX(x, this._y);
+        this.updateDirectionX(x, this._x);
 
+        if (x !== undefined && !Number.isNaN(x)) {
             this._x = this._actualY = x;
 
             if (normalize) {
@@ -156,9 +163,9 @@ export class NgScrollView extends BaseScrollView {
     override get y() { return this._y; }
 
     protected setY(y: number, snap: boolean = true, normalize: boolean = true) {
-        if (y !== undefined && !Number.isNaN(y)) {
-            this.updateDirectionY(y, this._y);
+        this.updateDirectionY(y, this._y);
 
+        if (y !== undefined && !Number.isNaN(y)) {
             this._y = this._actualY = y;
 
             if (normalize) {
@@ -268,8 +275,7 @@ export class NgScrollView extends BaseScrollView {
             debounceTime(100),
             tap(({ v0X, v0Y }) => {
                 this.snapWithInitialForceIfNecessary(v0X, v0Y);
-                this._scrollDirectionX.clear();
-                this._scrollDirectionY.clear();
+                this.scrollDirectionX = this.scrollDirectionY = 0;
             }),
         ).subscribe();
 
@@ -378,8 +384,7 @@ export class NgScrollView extends BaseScrollView {
                     filter(v => this._interactive),
                     switchMap(e => {
                         mouseCanceled = false;
-                        this._scrollDirectionX.clear();
-                        this._scrollDirectionY.clear();
+                        this.scrollDirectionX = this.scrollDirectionY = 0;
                         this.cancelOverscroll();
                         this.onDragStart();
                         this.stopScrolling(true);
@@ -531,8 +536,7 @@ export class NgScrollView extends BaseScrollView {
                     filter(v => this._interactive),
                     switchMap(e => {
                         touchCanceled = false;
-                        this._scrollDirectionX.clear();
-                        this._scrollDirectionY.clear();
+                        this.scrollDirectionX = this.scrollDirectionY = 0;
                         this.cancelOverscroll();
                         this.onDragStart();
                         this.stopScrolling(true);
@@ -627,12 +631,12 @@ export class NgScrollView extends BaseScrollView {
 
     protected updateDirectionX(position: number, prePosition: number) {
         const delta = (position - this._deltaX) - prePosition;
-        this._scrollDirectionX.add(delta > 0 ? 1 : delta < 0 ? -1 : 0);
+        this.scrollDirectionX = Math.sign(delta) as ScrollDirection;
     }
 
     protected updateDirectionY(position: number, prePosition: number) {
         const delta = (position - this._deltaY) - prePosition;
-        this._scrollDirectionY.add(delta > 0 ? 1 : delta < 0 ? -1 : 0);
+        this.scrollDirectionY = Math.sign(delta) as ScrollDirection;
     }
 
     protected override overrideCoordinates(x: number, y: number) {
@@ -703,8 +707,8 @@ export class NgScrollView extends BaseScrollView {
     protected stopMoving() { }
 
     private snapIfNecessary(v0X: number, v0Y: number, withInitialForce: boolean = true, animated: boolean = true, force: boolean = false) {
-        const scrollDirectionX = this._scrollDirectionX.get() || (force ? 1 : 0),
-            scrollDirectionY = this._scrollDirectionY.get() || (force ? 1 : 0);
+        const scrollDirectionX = this.scrollDirectionX || (force ? 1 : 0),
+            scrollDirectionY = this.scrollDirectionY || (force ? 1 : 0);
         if (scrollDirectionX === 0 && scrollDirectionY === 0) {
             return false;
         }
@@ -784,8 +788,12 @@ export class NgScrollView extends BaseScrollView {
             return;
         }
         if (this._overscrollEnabled) {
-            this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
-            this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
+            if (this.scrollDirectionX !== 0 || this._overscrollIteration === 0) {
+                this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
+            }
+            if (this.scrollDirectionY !== 0 || this._overscrollIteration === 0) {
+                this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
+            }
         }
     }
 
@@ -975,8 +983,8 @@ export class NgScrollView extends BaseScrollView {
             snappingDistance = parseFloatOrPersentageValue(sd),
             isPersentageSnappingDistance = isPercentageValue(sd);
         let size: ISize | null = null;
-        const scrollDirectionX = this._scrollDirectionX.get(),
-            scrollDirectionY = this._scrollDirectionY.get(),
+        const scrollDirectionX = this.scrollDirectionX,
+            scrollDirectionY = this.scrollDirectionY,
             currentPositionX = this.scrollLeft - this._startLayoutOffsetX,
             currentPositionY = this.scrollTop - this._startLayoutOffsetY,
             currentComponentBounds = this._service.getComponentBoundsByIntersectionPosition(currentPositionX, currentPositionY),
@@ -1046,8 +1054,8 @@ export class NgScrollView extends BaseScrollView {
         if (!this.snapToItem() || (this._isAlignmentAnimation && !force)) {
             return false;
         }
-        const scrollDirectionX = this._scrollDirectionX.get() || (force ? 1 : 0),
-            scrollDirectionY = this._scrollDirectionY.get() || (force ? 1 : 0);
+        const scrollDirectionX = this.scrollDirectionX || (force ? 1 : 0),
+            scrollDirectionY = this.scrollDirectionY || (force ? 1 : 0);
         if (scrollDirectionX === 0 && scrollDirectionY === 0) {
             return false;
         }
@@ -1271,18 +1279,22 @@ export class NgScrollView extends BaseScrollView {
                 return this.animate('y', prevY, y, duration, ease, blending, userAction);
             }
         } else {
-            if (horizontalAxisEnabled && x !== null && (this._x !== x || force)) {
-                this.setX(x, snap, normalize);
-                this.emitScrollableEvent();
-                if (fireUpdate) {
-                    this.fireScrollEvent(userAction);
+            if (horizontalAxisEnabled && (x !== null || force)) {
+                if (x !== null) {
+                    this.setX(x, snap, normalize);
+                    this.emitScrollableEvent();
+                    if (fireUpdate) {
+                        this.fireScrollEvent(userAction);
+                    }
                 }
             }
-            if (verticalAxisEnabled && y !== null && (this._y !== y || force)) {
-                this.setY(y, snap, normalize);
-                this.emitScrollableEvent();
-                if (fireUpdate) {
-                    this.fireScrollEvent(userAction);
+            if (verticalAxisEnabled && (y !== null || force)) {
+                if (y !== null) {
+                    this.setY(y, snap, normalize);
+                    this.emitScrollableEvent();
+                    if (fireUpdate) {
+                        this.fireScrollEvent(userAction);
+                    }
                 }
             }
         }

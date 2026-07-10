@@ -501,16 +501,14 @@ export class NgScrollerComponent extends NgScrollView {
     this.stopScrollbar(false);
     this.stopScrollbar(true);
     this.stopScrolling(true);
-    this._scrollDirectionX.clear();
-    this._scrollDirectionY.clear();
+    this.scrollDirectionX = this.scrollDirectionY = 0;
     this.dropVelocity();
     this._isScrollsTo = true;
   }
 
   finishedScrollTo() {
     this._isScrollsTo = false;
-    this._scrollDirectionX.clear();
-    this._scrollDirectionY.clear();
+    this.scrollDirectionX = this.scrollDirectionY = 0;
     this.dropVelocity();
     this.checkIntersectionComponent();
     this.fireScrollEvent(true);
@@ -604,9 +602,9 @@ export class NgScrollerComponent extends NgScrollView {
       this.alignPosition();
     }
     if (isVertical) {
-      this._scrollDirectionY.clear();
+      this.scrollDirectionY = 0;
     } else {
-      this._scrollDirectionX.clear();
+      this.scrollDirectionX = 0;
     }
     this._$scrollbarScroll.next(true);
     this.fireScrollEvent(true);
