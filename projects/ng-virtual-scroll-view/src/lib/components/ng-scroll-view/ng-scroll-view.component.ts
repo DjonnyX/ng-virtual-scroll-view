@@ -138,14 +138,14 @@ export class NgScrollView extends BaseScrollView {
     override get x() { return this._x; }
 
     protected setX(x: number, snap: boolean = true, normalize: boolean = true) {
-        this.updateDirectionX(x, this._x);
-
         if (x !== undefined && !Number.isNaN(x)) {
             this._x = this._actualY = x;
 
             if (normalize) {
                 this.normalizeScrollSize();
             }
+
+            this.updateDirectionX(x, this._x);
 
             this.refreshCoordinate(this._x, this._y);
 
@@ -163,14 +163,14 @@ export class NgScrollView extends BaseScrollView {
     override get y() { return this._y; }
 
     protected setY(y: number, snap: boolean = true, normalize: boolean = true) {
-        this.updateDirectionY(y, this._y);
-
         if (y !== undefined && !Number.isNaN(y)) {
             this._y = this._actualY = y;
 
             if (normalize) {
                 this.normalizeScrollSize();
             }
+
+            this.updateDirectionY(y, this._y);
 
             this.refreshCoordinate(this._x, this._y);
 
@@ -1279,7 +1279,10 @@ export class NgScrollView extends BaseScrollView {
                 return this.animate('y', prevY, y, duration, ease, blending, userAction);
             }
         } else {
-            if (horizontalAxisEnabled && (x !== null || force)) {
+            if (horizontalAxisEnabled && x !== null) {
+                this.updateDirectionX(x, this._x);
+            }
+            if (horizontalAxisEnabled && x !== null && (x !== prevX || force)) {
                 if (x !== null) {
                     this.setX(x, snap, normalize);
                     this.emitScrollableEvent();
@@ -1288,7 +1291,10 @@ export class NgScrollView extends BaseScrollView {
                     }
                 }
             }
-            if (verticalAxisEnabled && (y !== null || force)) {
+            if (verticalAxisEnabled && y !== null) {
+                this.updateDirectionY(y, this._y);
+            }
+            if (verticalAxisEnabled && y !== null && (y !== prevY || force)) {
                 if (y !== null) {
                     this.setY(y, snap, normalize);
                     this.emitScrollableEvent();
