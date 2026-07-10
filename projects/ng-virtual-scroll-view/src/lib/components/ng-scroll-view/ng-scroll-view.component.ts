@@ -889,14 +889,14 @@ export class NgScrollView extends BaseScrollView {
                 const { startPosition: startPositionX, endPosition: endPositionX, duration: durationX } = this.calculateParamsWithVelocity(positionX, vX, a0X, this.x),
                     { startPosition: startPositionY, endPosition: endPositionY, duration: durationY } = this.calculateParamsWithVelocity(positionY, vY, a0Y, this.y),
                     duration = Math.max(durationX, durationY);
-                this.animate('x', startPositionX, Math.round(endPositionX), duration, easeOutQuad, false, true);
-                this.animate('y', startPositionY, Math.round(endPositionY), duration, easeOutQuad, false, true);
+                this.animate('x', startPositionX, endPositionX, duration, easeOutQuad, false, true);
+                this.animate('y', startPositionY, endPositionY, duration, easeOutQuad, false, true);
             } else if (animateX) {
                 const { startPosition, endPosition, duration } = this.calculateParamsWithVelocity(positionX, vX, a0X, this.x);
-                this.animate('x', startPosition, Math.round(endPosition), duration, easeOutQuad, false, true);
+                this.animate('x', startPosition, endPosition, duration, easeOutQuad, false, true);
             } else if (animateY) {
                 const { startPosition, endPosition, duration } = this.calculateParamsWithVelocity(positionY, vY, a0Y, this.y);
-                this.animate('y', startPosition, Math.round(endPosition), duration, easeOutQuad, false, true);
+                this.animate('y', startPosition, endPosition, duration, easeOutQuad, false, true);
             }
         } else {
             this.alignPosition(true, true);
