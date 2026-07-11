@@ -61,6 +61,10 @@ export class NgScrollView extends BaseScrollView {
 
     protected _isScrollsTo: boolean = false;
 
+    private _scrollDirectionValueX: number = 0;
+
+    private _scrollDirectionValueY: number = 0;
+
     private _$scrollDirectionX = new BehaviorSubject<ScrollDirection>(0);
     protected $scrollDirectionX = this._$scrollDirectionX.asObservable();
     set scrollDirectionX(v: ScrollDirection) {
@@ -281,7 +285,7 @@ export class NgScrollView extends BaseScrollView {
             debounceTime(100),
             tap(({ v0X, v0Y }) => {
                 this.snapWithInitialForceIfNecessary(v0X, v0Y);
-                this.scrollDirectionX = this.scrollDirectionY = 0;
+                this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
             }),
         ).subscribe();
 
@@ -390,7 +394,7 @@ export class NgScrollView extends BaseScrollView {
                     filter(v => this._interactive),
                     switchMap(e => {
                         mouseCanceled = false;
-                        this.scrollDirectionX = this.scrollDirectionY = 0;
+                        this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
                         this.cancelOverscroll();
                         this.onDragStart();
                         this.stopScrolling(true);
@@ -427,6 +431,8 @@ export class NgScrollView extends BaseScrollView {
                                         this.calculatePosition(true, this._verticalAxisEnabled(), false, e, inversion, startClientPosY, startTimeY, prevClientPositionY, offsetsY, velocitiesY);
                                 prevClientPositionX = currentPosX;
                                 prevClientPositionY = currentPosY;
+                                this._scrollDirectionValueX += Math.abs(scrollDeltaX);
+                                this._scrollDirectionValueY += Math.abs(scrollDeltaY);
                                 this.move(positionX, positionY, true, true, true);
                                 const offsetX = Math.abs(positionX) - Math.abs(this._x),
                                     offsetY = Math.abs(positionY) - Math.abs(this._y),
@@ -542,7 +548,7 @@ export class NgScrollView extends BaseScrollView {
                     filter(v => this._interactive),
                     switchMap(e => {
                         touchCanceled = false;
-                        this.scrollDirectionX = this.scrollDirectionY = 0;
+                        this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
                         this.cancelOverscroll();
                         this.onDragStart();
                         this.stopScrolling(true);
@@ -579,6 +585,8 @@ export class NgScrollView extends BaseScrollView {
                                         this.calculatePosition(true, this._verticalAxisEnabled(), false, e, inversion, startClientPosY, startTimeY, prevClientPositionY, offsetsY, velocitiesY);
                                 prevClientPositionX = currentPosX;
                                 prevClientPositionY = currentPosY;
+                                this._scrollDirectionValueX += Math.abs(scrollDeltaX);
+                                this._scrollDirectionValueY += Math.abs(scrollDeltaY);
                                 this.move(positionX, positionY, true, true, true);
                                 const offsetX = Math.abs(positionX) - Math.abs(this._x),
                                     offsetY = Math.abs(positionY) - Math.abs(this._y),
@@ -766,12 +774,13 @@ export class NgScrollView extends BaseScrollView {
         this._overscrollIteration = 0;
     }
 
-    private checkOverscrollByAxis(e: Event, pos: number, limit: number) {
+    private checkOverscrollByAxis(e: Event, pos: number, limit: number): boolean {
         const p = Math.abs(pos);
         if (p > 0 && p < limit) {
             if (e.cancelable) {
                 e.stopImmediatePropagation();
                 e.preventDefault();
+                return true;
             }
             this._overscrollIteration = 0;
         } else {
@@ -780,10 +789,16 @@ export class NgScrollView extends BaseScrollView {
                 if (e.cancelable) {
                     e.stopImmediatePropagation();
                     e.preventDefault();
+                    return true;
                 }
             }
         }
+        return false;
     }
+
+    private _overscrollXIteration = 0;
+
+    private _overscrollYIteration = 0;
 
     private checkOverscroll(e: Event) {
         if (!this._overscrollEnabled || !this.overscrollEnabled()) {
@@ -794,11 +809,26 @@ export class NgScrollView extends BaseScrollView {
             return;
         }
         if (this._overscrollEnabled) {
-            if (this.scrollDirectionX !== 0 || this._overscrollIteration === 0) {
-                this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
-            }
-            if (this.scrollDirectionY !== 0 || this._overscrollIteration === 0) {
-                this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
+            if (this._scrollDirectionValueX > this._scrollDirectionValueY) {
+                if ((this._horizontalScrollRatio > 0 && this._horizontalScrollRatio < 1) || !this.scrollableX) {
+                    this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
+                    this._overscrollXIteration = 0;
+                } else {
+                    if (this._overscrollXIteration < OVERSCROLL_START_ITERATION) {
+                        this._overscrollXIteration++;
+                        this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
+                    }
+                }
+            } else {
+                if ((this._verticalScrollRatio > 0 && this._verticalScrollRatio < 1) || !this.scrollableY) {
+                    this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
+                    this._overscrollYIteration = 0;
+                } else {
+                    if (this._overscrollXIteration < OVERSCROLL_START_ITERATION) {
+                        this._overscrollYIteration++;
+                        this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
+                    }
+                }
             }
         }
     }
