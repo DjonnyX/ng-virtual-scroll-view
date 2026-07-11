@@ -13,7 +13,7 @@ import {
   DEFAULT_ANIMATION_PARAMS, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLING_SETTINGS, DEFAULT_SNAP_TO_ITEM, DEFAULT_SNAP_TO_ITEM_ALIGN,
   DEFAULT_MOTION_BLUR, DEFAULT_MAX_MOTION_BLUR, DEFAULT_SCROLLING_ONE_BY_ONE, DEFAULT_MOTION_BLUR_ENABLED, DEFAULT_SNAPPING_DISTANCE,
   DEFAULT_ALIGNMENT, DEFAULT_SPREADING_MODE, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SNAP_SCROLLTO_LEFT, DEFAULT_SNAP_SCROLLTO_TOP,
-  DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH,
+  DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH, DEFAULT_SCROLLABLE,
 } from './const';
 import {
   IScrollEvent, IAnimationParams, ISize, IScrollingSettings,
@@ -372,6 +372,23 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
    */
   snapScrollToBottom = input<boolean>(DEFAULT_SNAP_SCROLLTO_BOTTOM, { ...this._snapScrollToBottomOptions });
+
+  private _scrollableOptions = {
+    transform: (v: boolean) => {
+      const valid = validateBoolean(v, true);
+
+      if (!valid) {
+        console.error('The "scrollable" parameter must be of type `boolean`.');
+        return DEFAULT_SCROLLBAR_ENABLED;
+      }
+      return v;
+    },
+  } as any;
+
+  /**
+   * Determines whether scrolling is enabled or disabled. The default value is "true".
+   */
+  scrollable = input<boolean>(DEFAULT_SCROLLABLE, { ...this._scrollableOptions });
 
   private _scrollbarEnabledOptions = {
     transform: (v: boolean) => {

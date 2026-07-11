@@ -10,6 +10,8 @@ export const DEFAULT_LIST_SIZE = 400;
 
 export const DEFAULT_CLICK_DISTANCE = 40;
 
+export const DEFAULT_SCROLLABLE = true;
+
 export const DEFAULT_SCROLLBAR_ENABLED = true;
 
 export const DEFAULT_SCROLLBAR_INTERACTIVE = true;

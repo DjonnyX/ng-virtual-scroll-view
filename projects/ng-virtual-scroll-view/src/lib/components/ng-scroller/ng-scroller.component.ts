@@ -312,13 +312,14 @@ export class NgScrollerComponent extends NgScrollView {
 
     this.containerClasses = computed(() => {
       const { width: contentWidth, height: contentHeight } = this.contentBounds(),
+        scrollEnabled = this.scrollable(),
         { width, height } = this.viewportBounds(),
         overlappingScrollbar = this.overlappingScrollbar(),
         viewportWidth = width,
         viewportHeight = height,
         scrollableX = contentWidth > viewportWidth,
         scrollableY = contentHeight > viewportHeight,
-        scrollable = scrollableX || scrollableY;
+        scrollable = scrollEnabled && (scrollableX || scrollableY);
       return {
         [this.direction()]: true, grabbing: this.grabbing(), enabled: this.scrollbarEnabled(),
         scrollable, scrollableX, scrollableY, overlapping: overlappingScrollbar,

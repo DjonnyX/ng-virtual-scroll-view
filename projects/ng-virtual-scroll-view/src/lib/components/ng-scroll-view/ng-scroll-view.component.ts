@@ -6,7 +6,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, debounceTime, delay, filter, fromEvent, map, of, race, Subject, switchMap, takeUntil, tap } from 'rxjs';
 import { ANIMATOR_MIN_TIMESTAMP, Animator, Easing, easeOutQuad } from '../../utils/animator';
 import {
-    BEHAVIOR_INSTANT, DEFAULT_ANIMATION_PARAMS, DEFAULT_OVERSCROLL_ENABLED, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLING_ONE_BY_ONE,
+    BEHAVIOR_INSTANT, DEFAULT_ANIMATION_PARAMS, DEFAULT_OVERSCROLL_ENABLED, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLABLE, DEFAULT_SCROLLING_ONE_BY_ONE,
     DEFAULT_SCROLLING_SETTINGS, DEFAULT_SNAP_TO_ITEM, DEFAULT_SNAP_TO_ITEM_ALIGN, DEFAULT_SNAPPING_DISTANCE, INTERACTIVE, MOUSE_DOWN,
     MOUSE_MOVE, MOUSE_UP, TOUCH_END, TOUCH_MOVE, TOUCH_START, WHEEL,
 } from '../../const';
@@ -40,6 +40,8 @@ import { ScrollerDirection } from './enums';
 export class NgScrollView extends BaseScrollView {
     @ViewChild('scrollViewport', { read: CdkScrollable })
     readonly cdkScrollable: CdkScrollable | undefined;
+
+    readonly scrollable = input<boolean>(DEFAULT_SCROLLABLE);
 
     readonly scrollBehavior = input<ScrollBehavior>(DEFAULT_SCROLL_BEHAVIOR);
 
@@ -297,7 +299,12 @@ export class NgScrollView extends BaseScrollView {
             takeUntilDestroyed(this._destroyRef),
             filter(v => !!v),
             map(v => v.nativeElement),
-        ), $wheelEmitter = this._inversion ? $viewport : $content;
+        ),
+            $scrollDisabled = toObservable(this.scrollable).pipe(
+                takeUntilDestroyed(),
+                filter(v => !v),
+            ),
+            $wheelEmitter = this._inversion ? $viewport : $content;
 
         $wheelEmitter.pipe(
             takeUntilDestroyed(this._destroyRef),
@@ -306,6 +313,9 @@ export class NgScrollView extends BaseScrollView {
                     filter(() => this._interactive),
                     takeUntilDestroyed(this._destroyRef),
                     tap(e => {
+                        if (!this.scrollable()) {
+                            return;
+                        }
                         this.emitScrollableEvent();
                         this.checkOverscroll(e);
                         this.stopScrolling(true);
@@ -367,6 +377,7 @@ export class NgScrollView extends BaseScrollView {
                         return race([fromEvent<MouseEvent>(window, MOUSE_UP, { passive: false }), fromEvent<MouseEvent>(content, MOUSE_UP, { passive: false })]).pipe(
                             takeUntilDestroyed(this._destroyRef),
                             takeUntil(fromEvent<MouseEvent>(window, MOUSE_MOVE, { passive: false })),
+                            takeUntil($scrollDisabled),
                             tap(e => {
                                 this._isMoving = false;
                                 this.grabbing.set(false);
@@ -421,6 +432,7 @@ export class NgScrollView extends BaseScrollView {
                         return fromEvent<MouseEvent>(window, MOUSE_MOVE, { passive: false }).pipe(
                             takeUntilDestroyed(this._destroyRef),
                             takeUntil($mouseDragCancel),
+                            takeUntil($scrollDisabled),
                             tap(e => {
                                 this.checkOverscroll(e);
                             }),
@@ -450,6 +462,7 @@ export class NgScrollView extends BaseScrollView {
                                 return race([fromEvent<MouseEvent>(window, MOUSE_UP, { passive: false }), fromEvent<MouseEvent>(content, MOUSE_UP, { passive: false })]).pipe(
                                     takeUntilDestroyed(this._destroyRef),
                                     takeUntil($mouseDragCancel),
+                                    takeUntil($scrollDisabled),
                                     tap(e => {
                                         mouseCanceled = true;
                                         this.cancelOverscroll();
@@ -521,6 +534,7 @@ export class NgScrollView extends BaseScrollView {
                         return race([fromEvent<TouchEvent>(window, TOUCH_END, { passive: false }), fromEvent<TouchEvent>(content, TOUCH_END, { passive: false })]).pipe(
                             takeUntilDestroyed(this._destroyRef),
                             takeUntil(fromEvent<TouchEvent>(window, TOUCH_MOVE, { passive: false })),
+                            takeUntil($scrollDisabled),
                             tap(e => {
                                 this._isMoving = false;
                                 this.grabbing.set(false);
@@ -575,6 +589,7 @@ export class NgScrollView extends BaseScrollView {
                         return fromEvent<TouchEvent>(window, TOUCH_MOVE, { passive: false }).pipe(
                             takeUntilDestroyed(this._destroyRef),
                             takeUntil($touchCanceler),
+                            takeUntil($scrollDisabled),
                             tap(e => {
                                 this.checkOverscroll(e);
                             }),
@@ -604,6 +619,7 @@ export class NgScrollView extends BaseScrollView {
                                 return race([fromEvent<TouchEvent>(window, TOUCH_END, { passive: false }), fromEvent<TouchEvent>(content, TOUCH_END, { passive: false })]).pipe(
                                     takeUntilDestroyed(this._destroyRef),
                                     takeUntil($touchCanceler),
+                                    takeUntil($scrollDisabled),
                                     tap(e => {
                                         touchCanceled = true;
                                         this.cancelOverscroll();

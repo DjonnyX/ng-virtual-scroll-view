@@ -7,9 +7,9 @@
 @let alignmentScrollTopOffset = _alignmentScrollTopOffset();
 @let alignmentScrollBottomOffset = _alignmentScrollBottomOffset();
 
-<ng-scroller #scroller class="ngvs__scroller" [classes]="classes()" [langTextDir]="langTextDir()"
-  [leftOffset]="scrollLeftOffset" [rightOffset]="scrollRightOffset" [topOffset]="scrollTopOffset"
-  [bottomOffset]="scrollBottomOffset" [alignmentLeftOffset]="alignmentScrollLeftOffset"
+<ng-scroller #scroller class="ngvs__scroller" [classes]="classes()" [scrollable]="scrollable()"
+  [langTextDir]="langTextDir()" [leftOffset]="scrollLeftOffset" [rightOffset]="scrollRightOffset"
+  [topOffset]="scrollTopOffset" [bottomOffset]="scrollBottomOffset" [alignmentLeftOffset]="alignmentScrollLeftOffset"
   [alignmentRightOffset]="alignmentScrollRightOffset" [alignmentTopOffset]="alignmentScrollTopOffset"
   [alignmentBottomOffset]="alignmentScrollBottomOffset" [direction]="direction()"
   [scrollbarThumbRenderer]="scrollbarThumbRenderer()" [isInfinity]="_isInfinity()"
