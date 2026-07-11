@@ -1277,13 +1277,15 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       takeUntilDestroyed(),
       filter(v => !!v),
       switchMap(() => {
-        return combineLatest([$isInfinity, $snapScrollToLeft, $snapScrollToRight, $snapScrollToTop, $snapScrollToBottom, $bounds, $scrollerBounds,
+        return combineLatest([$isInfinity, $snapScrollToLeft, $snapScrollToRight, $snapScrollToTop, $snapScrollToBottom, $precalculatedScrollLeftOffset, $precalculatedScrollRightOffset, $precalculatedScrollTopOffset,
+          $precalculatedScrollBottomOffset, $bounds, $scrollerBounds,
           $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollBottomOffset, $scrollSizeX, $scrollSizeY, $direction, $snapToItem, $snapToItemAlign,
           $alignment, this.$fireUpdate,
         ]).pipe(
           takeUntilDestroyed(this._destroyRef),
           tap(([
-            isInfinity, snapScrollToLeft, snapScrollToRight, snapScrollToTop, snapScrollToBottom, bounds, scrollerBounds,
+            isInfinity, snapScrollToLeft, snapScrollToRight, snapScrollToTop, snapScrollToBottom, precalculatedScrollLeftOffset, precalculatedScrollRightOffset,
+            precalculatedScrollTopOffset, precalculatedScrollBottomOffset, bounds, scrollerBounds,
             scrollLeftOffset, scrollRightOffset, scrollTopOffset, scrollBottomOffset, scrollSizeX, scrollSizeY, direction, snapToItem, snapToItemAlign,
             alignment,
           ]) => {
@@ -1636,12 +1638,16 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
         viewportSizeWidth = width,
         viewportSizeHeight = height,
         { width: contentWidth, height: contentHeight } = scrollerComponent.contentBounds(),
-        precalculatedScrollStartOffset = this._precalculatedScrollLeftOffset(),
-        precalculatedScrollEndOffset = this._precalculatedScrollTopOffset();
+        precalculatedScrollLeftOffset = this._precalculatedScrollLeftOffset(),
+        precalculatedScrollRightOffset = this._precalculatedScrollRightOffset(),
+        precalculatedScrollTopOffset = this._precalculatedScrollTopOffset(),
+        precalculatedScrollBottomOffset = this._precalculatedScrollBottomOffset();
       switch (alignment) {
         case Alignments.NONE: {
-          this._actualScrollLeftOffset.set(precalculatedScrollStartOffset);
-          this._actualScrollTopOffset.set(precalculatedScrollEndOffset);
+          this._actualScrollLeftOffset.set(precalculatedScrollLeftOffset);
+          this._actualScrollRightOffset.set(precalculatedScrollRightOffset);
+          this._actualScrollTopOffset.set(precalculatedScrollTopOffset);
+          this._actualScrollBottomOffset.set(precalculatedScrollBottomOffset);
           break;
         }
         case Alignments.CENTER: {
@@ -1654,10 +1660,10 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
           this._alignmentScrollRightOffset.set(alignmentRightOffset);
           this._alignmentScrollTopOffset.set(alignmentTopOffset);
           this._alignmentScrollBottomOffset.set(alignmentBottomOffset);
-          this._actualScrollLeftOffset.set(precalculatedScrollStartOffset + alignmentLeftOffset);
-          this._actualScrollRightOffset.set(precalculatedScrollEndOffset + alignmentRightOffset);
-          this._actualScrollTopOffset.set(precalculatedScrollStartOffset + alignmentTopOffset);
-          this._actualScrollBottomOffset.set(precalculatedScrollEndOffset + alignmentBottomOffset);
+          this._actualScrollLeftOffset.set(precalculatedScrollLeftOffset + alignmentLeftOffset);
+          this._actualScrollRightOffset.set(precalculatedScrollRightOffset + alignmentRightOffset);
+          this._actualScrollTopOffset.set(precalculatedScrollTopOffset + alignmentTopOffset);
+          this._actualScrollBottomOffset.set(precalculatedScrollBottomOffset + alignmentBottomOffset);
           break;
         }
       }

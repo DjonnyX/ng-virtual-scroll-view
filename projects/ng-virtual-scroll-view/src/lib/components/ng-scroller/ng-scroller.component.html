@@ -23,11 +23,12 @@
     </svg>
     @if (scrollbarEnabled()) {
         @if (scrollbarVerticalEnabled()) {
-            <ng-scroll-bar #scrollBarVertical direction="vertical" [size]="thumbSizeVertical()" [renderer]="scrollbarThumbRenderer()"
-                [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()" [loading]="loading()"
-                [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositionsVertical()" [prepared]="prepared"
+            <ng-scroll-bar #scrollBarVertical direction="vertical" [size]="thumbSizeVertical()"
+                [renderer]="scrollbarThumbRenderer()" [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()"
+                [loading]="loading()" [overlapping]="overlappingScrollbar()"
+                [thumbGradientPositions]="thumbGradientPositionsVertical()" [prepared]="prepared"
                 [interactive]="scrollbarInteractive()" [show]="scrollbarVerticalEnabled() && scrollbarEnabled() && prepared"
-                [startOffset]="topOffset()" [langTextDir]="textDir" [endOffset]="bottomOffset()"
+                [topOffset]="topOffset()" [langTextDir]="textDir" [bottomOffset]="bottomOffset()"
                 [overscrollEnabled]="overscrollEnabled()" [scrollBehavior]="scrollBehavior()"
                 [scrollbarMinSize]="scrollbarMinSize()" (onDrag)="onScrollBarDragHandler($event)"
                 (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
@@ -35,12 +36,13 @@
         @if (scrollbarHorizontalEnabled()) {
             <ng-scroll-bar #scrollBarHorizontal direction="horizontal" [size]="thumbSizeHorizontal()"
                 [renderer]="scrollbarThumbRenderer()" [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()"
-                [loading]="loading()" [overlapping]="overlappingScrollbar()" [thumbGradientPositions]="thumbGradientPositionsHorizontal()"
-                [prepared]="prepared" [interactive]="scrollbarInteractive()"
-                [show]="scrollbarHorizontalEnabled() && scrollbarEnabled() && prepared" [startOffset]="leftOffset()"
-                [langTextDir]="textDir" [endOffset]="rightOffset()" [overscrollEnabled]="overscrollEnabled()"
-                [scrollBehavior]="scrollBehavior()" [scrollbarMinSize]="scrollbarMinSize()"
-                (onDrag)="onScrollBarDragHandler($event)" (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
+                [loading]="loading()" [overlapping]="overlappingScrollbar()"
+                [thumbGradientPositions]="thumbGradientPositionsHorizontal()" [prepared]="prepared"
+                [interactive]="scrollbarInteractive()" [show]="scrollbarHorizontalEnabled() && scrollbarEnabled() && prepared"
+                [leftOffset]="leftOffset()" [langTextDir]="textDir" [rightOffset]="rightOffset()"
+                [overscrollEnabled]="overscrollEnabled()" [scrollBehavior]="scrollBehavior()"
+                [scrollbarMinSize]="scrollbarMinSize()" (onDrag)="onScrollBarDragHandler($event)"
+                (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
         }
     }
 </div>
