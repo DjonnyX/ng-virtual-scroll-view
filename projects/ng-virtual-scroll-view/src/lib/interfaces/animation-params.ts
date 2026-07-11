@@ -9,5 +9,4 @@
 export interface IAnimationParams {
     scrollToItem: number;
     snapToItem: number;
-    navigateToItem: number;
 }

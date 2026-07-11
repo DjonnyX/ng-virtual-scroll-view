@@ -37,9 +37,8 @@ export const DEFAULT_MOTION_BLUR_ENABLED = false;
 export const DEFAULT_MAX_MOTION_BLUR = 0.5;
 
 export const DEFAULT_ANIMATION_PARAMS: IAnimationParams = {
-    scrollToItem: 150,
+    scrollToItem: 0,
     snapToItem: 150,
-    navigateToItem: 150,
 };
 
 export const DEFAULT_SCROLLING_SETTINGS: IScrollingSettings = {

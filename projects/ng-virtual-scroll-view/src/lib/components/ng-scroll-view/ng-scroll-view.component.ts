@@ -228,6 +228,12 @@ export class NgScrollView extends BaseScrollView {
 
     protected _verticalAxisEnabled: Signal<boolean>;
 
+    protected _horizontalScrollRatio = 0;
+    get horizontalScrollRatio() { return this._horizontalScrollRatio; }
+
+    protected _verticalScrollRatio = 0;
+    get verticalScrollRatio() { return this._verticalScrollRatio; }
+
     constructor() {
         super();
 
@@ -1217,6 +1223,18 @@ export class NgScrollView extends BaseScrollView {
         this._intersectionComponentId = componentId;
     }
 
+    protected override normalizeScrollWidth() {
+        const result = super.normalizeScrollWidth();
+        this.scrollLimits();
+        return result;
+    }
+
+    protected override normalizeScrollHeight() {
+        const result = super.normalizeScrollHeight();
+        this.scrollLimits();
+        return result;
+    }
+
     protected onAnimationComplete(position: number) { }
 
     fireScroll(userAction: boolean = false) {
@@ -1285,6 +1303,11 @@ export class NgScrollView extends BaseScrollView {
             if (horizontalAxisEnabled && x !== null && (x !== prevX || force)) {
                 if (x !== null) {
                     this.setX(x, snap, normalize);
+                    if (userAction) {
+                        const scrollWidth = Math.abs(this.scrollWidth),
+                            xx = Math.abs(this._x);
+                        this._horizontalScrollRatio = scrollWidth !== 0 ? (xx / scrollWidth) : 0;
+                    }
                     this.emitScrollableEvent();
                     if (fireUpdate) {
                         this.fireScrollEvent(userAction);
@@ -1297,6 +1320,11 @@ export class NgScrollView extends BaseScrollView {
             if (verticalAxisEnabled && y !== null && (y !== prevY || force)) {
                 if (y !== null) {
                     this.setY(y, snap, normalize);
+                    if (userAction) {
+                        const scrollHeight = Math.abs(this.scrollHeight),
+                            yy = Math.abs(this._y);
+                        this._verticalScrollRatio = scrollHeight !== 0 ? yy / scrollHeight : 0;
+                    }
                     this.emitScrollableEvent();
                     if (fireUpdate) {
                         this.fireScrollEvent(userAction);

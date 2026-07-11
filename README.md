@@ -46,7 +46,7 @@ Inputs
 | Property | Type | Description |
 |---|---|---|
 | alignment | [Alignment](https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/enums/alignment.ts) | Determines the alignment of the list. Two modes are available: `none` and `center`. The `center` mode aligns the list items to the center of the viewport, ideal for use with the `itemTransform` property. The `none` mode means no alignment. The default value is `none`. |
-| animationParams | [IAnimationParams](https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/interfaces/animation-params.ts)? = { scrollToItem: 150, snapToItem: 150, navigateToItem: 150, navigateByKeyboard: 50 } | Animation parameters. The default value is "{ scrollToItem: 150, snapToItem: 150, navigateToItem: 150, navigateByKeyboard: 50 }". |
+| animationParams | [IAnimationParams](https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/interfaces/animation-params.ts)? = { scrollToItem: 150, snapToItem: 150, navigateByKeyboard: 50 } | Animation parameters. The default value is "{ scrollToItem: 150, snapToItem: 150, navigateByKeyboard: 50 }". |
 | clickDistance | number? = 40 | The maximum scroll distance at which a click event is triggered. |
 | direction | [Direction? = 'both'](https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/enums/direction.ts) | Determines the direction in which elements are placed. Default value is "both". |
 | id | number | Readonly. Returns the unique identifier of the component. | 

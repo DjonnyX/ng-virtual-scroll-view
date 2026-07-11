@@ -674,10 +674,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
         console.error('The "snapToItem" parameter must be of type `number`.');
         return DEFAULT_ANIMATION_PARAMS;
       }
-      if (!validateFloat(v.navigateToItem)) {
-        console.error('The "navigateToItem" parameter must be of type `number`.');
-        return DEFAULT_ANIMATION_PARAMS;
-      }
       if (!valid) {
         console.error('The "animationParams" parameter must be of type `object`.');
         return DEFAULT_ANIMATION_PARAMS;
@@ -687,7 +683,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   } as any;
 
   /**
-   * Animation parameters. The default value is "{ scrollToItem: 150, snapToItem: 150, navigateToItem: 150, navigateByKeyboard: 50 }".
+   * Animation parameters. The default value is "{ scrollToItem: 0, snapToItem: 150 }".
    */
   animationParams = input<IAnimationParams>(DEFAULT_ANIMATION_PARAMS, { ...this._animationParamsOptions });
 
@@ -1293,139 +1289,104 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
           ]) => {
             const scroller = this._scrollerComponent();
             if (!!scroller) {
-              const userAction = hasUserAction;
-
-              const currentScrollSizeX = scroller.scrollLeft,
-                currentScrollSizeY = scroller.scrollTop,
-                actualScrollSizeX = snapScrollToLeft ? scroller.scrollLeft : snapScrollToRight ? scroller.scrollWidth : scroller.scrollLeft,
-                actualScrollSizeY = snapScrollToTop ? scroller.scrollTop : snapScrollToBottom ? scroller.scrollHeight : scroller.scrollTop;
-
-              this.snappingHandler();
-
-              this.updateOffsetsByAllignment();
+              const userAction = hasUserAction, ready = _$created.getValue();
 
               if (!_$created.getValue()) {
                 _$created.next(true);
               }
 
-              const scrollPositionAfterUpdateX = actualScrollSizeX,
-                scrollPositionAfterUpdateY = actualScrollSizeY,
-                roundedScrollPositionAfterUpdateX = scrollPositionAfterUpdateX,
-                roundedScrollPositionAfterUpdateY = scrollPositionAfterUpdateY,
-                roundedMaxPositionAfterUpdateX = scroller.actualScrollWidth,
-                roundedMaxPositionAfterUpdateY = scroller.actualScrollHeight;
+              if (ready) {
+                const currentScrollSizeX = scroller.scrollLeft,
+                  currentScrollSizeY = scroller.scrollTop;
 
-              let toStart = false,
-                toEnd = false;
+                this.snappingHandler();
 
-              // if ((snapScrollToLeft && scroller.scrollableX) ||
-              //   (snapScrollToLeft && currentScrollSizeX <= MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
-              //   if (currentScrollSizeX !== roundedScrollPositionAfterUpdateX) {
-              //     this.emitScrollEvent(true, false, userAction);
+                this.updateOffsetsByAllignment();
 
-              //     const params: IScrollToParams = {
-              //       [LEFT_PROP_NAME]: 0, userAction,
-              //       fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-              //       blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
-              //     };
-              //     const animationId = scroller?.scrollTo?.(params);
-              //     if (animationId > -1) {
-              //       this._animationId = animationId;
-              //     } else {
-              //       scroller.stopAnimation(this._animationId);
-              //     }
-              //     toStart = true;
-              //   }
-              // }
+                const roundedMaxPositionAfterUpdateX = scroller.actualScrollWidth,
+                  roundedMaxPositionAfterUpdateY = scroller.actualScrollHeight;
 
-              // if ((snapScrollToTop && scroller.scrollableY) ||
-              //   (snapScrollToTop && currentScrollSizeY <= MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
-              //   if (currentScrollSizeY !== roundedScrollPositionAfterUpdateY) {
-              //     this.emitScrollEvent(true, false, userAction);
+                let toStart = false,
+                  toEnd = false;
 
-              //     const params: IScrollToParams = {
-              //       [TOP_PROP_NAME]: 0, userAction,
-              //       fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-              //       blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
-              //     };
-              //     const animationId = scroller?.scrollTo?.(params);
-              //     if (animationId > -1) {
-              //       this._animationId = animationId;
-              //     } else {
-              //       scroller.stopAnimation(this._animationId);
-              //     }
-              //     toStart = true;
-              //   }
-              // }
+                if ((snapScrollToLeft && scroller.horizontalScrollRatio === 0 && currentScrollSizeX !== 0)) {
+                  this.emitScrollEvent(true, false, userAction);
 
-              // if (toStart) {
-              //   return;
-              // }
+                  const params: IScrollToParams = {
+                    [LEFT_PROP_NAME]: 0, userAction,
+                    fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                  };
+                  const animationId = scroller?.scrollTo?.(params);
+                  if (animationId > -1) {
+                    this._animationId = animationId;
+                  } else {
+                    scroller.stopAnimation(this._animationId);
+                  }
+                  toStart = true;
+                }
 
-              // if ((snapScrollToRight) || (snapScrollToRight && !scroller.scrollableX) ||
-              //   (scrollPositionAfterUpdateX + MIN_PIXELS_FOR_PREVENT_SNAPPING >= roundedMaxPositionAfterUpdateX) ||
-              //   (roundedScrollPositionAfterUpdateX >= scrollPositionAfterUpdateX + MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
+                if ((snapScrollToTop && scroller.verticalScrollRatio === 0 && currentScrollSizeY !== 0)) {
+                  this.emitScrollEvent(true, false, userAction);
 
-              //   this.emitScrollEvent(true, false, false);
+                  const params: IScrollToParams = {
+                    [TOP_PROP_NAME]: 0, userAction,
+                    fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                  };
+                  const animationId = scroller?.scrollTo?.(params);
+                  if (animationId > -1) {
+                    this._animationId = animationId;
+                  } else {
+                    scroller.stopAnimation(this._animationId);
+                  }
+                  toStart = true;
+                }
 
-              //   const params: IScrollToParams = {
-              //     [LEFT_PROP_NAME]: roundedMaxPositionAfterUpdateX,
-              //     behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-              //     userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
-              //   };
-              //   const animationId = scroller?.scrollTo?.(params);
-              //   if (animationId > -1) {
-              //     this._animationId = animationId;
-              //   } else {
-              //     scroller.stopAnimation(this._animationId);
-              //   }
-              //   toEnd = true;
-              // }
+                if (toStart) {
+                  return;
+                }
 
-              // if ((snapScrollToBottom) || (snapScrollToBottom && !scroller.scrollableY) ||
-              //   (scrollPositionAfterUpdateY + MIN_PIXELS_FOR_PREVENT_SNAPPING >= roundedMaxPositionAfterUpdateY) ||
-              //   (roundedScrollPositionAfterUpdateY >= scrollPositionAfterUpdateY + MIN_PIXELS_FOR_PREVENT_SNAPPING)) {
+                if ((snapScrollToRight && scroller.horizontalScrollRatio === 1 && currentScrollSizeX !== roundedMaxPositionAfterUpdateX)) {
 
-              //   this.emitScrollEvent(true, false, false);
+                  this.emitScrollEvent(true, false, false);
 
-              //   const params: IScrollToParams = {
-              //     [TOP_PROP_NAME]: roundedMaxPositionAfterUpdateY,
-              //     behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-              //     userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
-              //   };
-              //   const animationId = scroller?.scrollTo?.(params);
-              //   if (animationId > -1) {
-              //     this._animationId = animationId;
-              //   } else {
-              //     scroller.stopAnimation(this._animationId);
-              //   }
-              //   toEnd = true;
-              // }
+                  const params: IScrollToParams = {
+                    [LEFT_PROP_NAME]: roundedMaxPositionAfterUpdateX,
+                    behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                  };
+                  const animationId = scroller?.scrollTo?.(params);
+                  if (animationId > -1) {
+                    this._animationId = animationId;
+                  } else {
+                    scroller.stopAnimation(this._animationId);
+                  }
+                  toEnd = true;
+                }
 
-              // if (toEnd) {
-              //   return;
-              // }
+                if ((snapScrollToBottom && scroller.verticalScrollRatio === 1 && currentScrollSizeY !== roundedMaxPositionAfterUpdateY)) {
 
-              // if ((scrollSizeX !== scrollPositionAfterUpdateX &&
-              //   ((scrollPositionAfterUpdateX >= 0 && scrollPositionAfterUpdateX < roundedMaxPositionAfterUpdateX) ||
-              //     (scrollSizeX !== roundedMaxPositionAfterUpdateX || currentScrollSizeX !== scrollPositionAfterUpdateX))) ||
-              //   (scrollSizeY !== scrollPositionAfterUpdateY &&
-              //     ((scrollPositionAfterUpdateY >= 0 && scrollPositionAfterUpdateY < roundedMaxPositionAfterUpdateY) ||
-              //       (scrollSizeY !== roundedMaxPositionAfterUpdateY || currentScrollSizeY !== scrollPositionAfterUpdateY)))) {
+                  this.emitScrollEvent(true, false, false);
 
-              //   this.emitScrollEvent(true, false, userAction);
-              //   if (this._animationId > -1) {
-              //     scroller.stopAnimation(this._animationId);
-              //     this._animationId = -1;
-              //   }
-              //   const params: IScrollToParams = {
-              //     [LEFT_PROP_NAME]: scrollPositionAfterUpdateX,
-              //     [TOP_PROP_NAME]: scrollPositionAfterUpdateY, blending: true, userAction,
-              //     fireUpdate: true, behavior: BEHAVIOR_INSTANT, duration: 0,
-              //   };
-              //   scroller.scrollTo(params);
-              //   return;
-              // }
+                  const params: IScrollToParams = {
+                    [TOP_PROP_NAME]: roundedMaxPositionAfterUpdateY,
+                    behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                  };
+                  const animationId = scroller?.scrollTo?.(params);
+                  if (animationId > -1) {
+                    this._animationId = animationId;
+                  } else {
+                    scroller.stopAnimation(this._animationId);
+                  }
+                  toEnd = true;
+                }
+
+                if (toEnd) {
+                  return;
+                }
+              }
             }
           }),
         );
