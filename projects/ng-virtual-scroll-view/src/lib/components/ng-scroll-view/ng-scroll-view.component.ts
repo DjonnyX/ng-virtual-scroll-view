@@ -1297,9 +1297,6 @@ export class NgScrollView extends BaseScrollView {
                 return this.animate('y', prevY, y, duration, ease, blending, userAction);
             }
         } else {
-            if (horizontalAxisEnabled && x !== null) {
-                this.updateDirectionX(x, this._x);
-            }
             if (horizontalAxisEnabled && x !== null && (x !== prevX || force)) {
                 if (x !== null) {
                     this.setX(x, snap, normalize);
@@ -1313,9 +1310,8 @@ export class NgScrollView extends BaseScrollView {
                         this.fireScrollEvent(userAction);
                     }
                 }
-            }
-            if (verticalAxisEnabled && y !== null) {
-                this.updateDirectionY(y, this._y);
+            } else if (horizontalAxisEnabled && x !== null) {
+                this.updateDirectionX(x, this._x);
             }
             if (verticalAxisEnabled && y !== null && (y !== prevY || force)) {
                 if (y !== null) {
@@ -1330,6 +1326,8 @@ export class NgScrollView extends BaseScrollView {
                         this.fireScrollEvent(userAction);
                     }
                 }
+            } else if (verticalAxisEnabled && y !== null) {
+                this.updateDirectionY(y, this._y);
             }
         }
         return -1;
