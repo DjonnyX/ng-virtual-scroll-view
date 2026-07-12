@@ -850,7 +850,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
   private _isLoading = false;
 
-  private _animationId: number = -1;
+  private _animationIds: Array<number> | null = null;
 
   private _$viewInit = new BehaviorSubject<boolean>(false);
   private readonly $viewInit = this._$viewInit.asObservable();
@@ -1330,13 +1330,13 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
                   const params: IScrollToParams = {
                     [LEFT_PROP_NAME]: 0, userAction,
                     fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                    blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
                   };
-                  const animationId = scroller?.scrollTo?.(params);
-                  if (animationId > -1) {
-                    this._animationId = animationId;
-                  } else {
-                    scroller.stopAnimation(this._animationId);
+                  const animationIds = scroller?.scrollTo?.(params);
+                  if (animationIds !== null) {
+                    this._animationIds = animationIds;
+                  } else if (this._animationIds !== null) {
+                    scroller.stopAnimation(...this._animationIds);
                   }
                   toStart = true;
                 }
@@ -1347,13 +1347,13 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
                   const params: IScrollToParams = {
                     [TOP_PROP_NAME]: 0, userAction,
                     fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                    blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
                   };
-                  const animationId = scroller?.scrollTo?.(params);
-                  if (animationId > -1) {
-                    this._animationId = animationId;
-                  } else {
-                    scroller.stopAnimation(this._animationId);
+                  const animationIds = scroller?.scrollTo?.(params);
+                  if (animationIds !== null) {
+                    this._animationIds = animationIds;
+                  } else if (this._animationIds !== null) {
+                    scroller.stopAnimation(...this._animationIds);
                   }
                   toStart = true;
                 }
@@ -1369,13 +1369,13 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
                   const params: IScrollToParams = {
                     [LEFT_PROP_NAME]: roundedMaxPositionAfterUpdateX,
                     behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                    userAction: false, blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
                   };
-                  const animationId = scroller?.scrollTo?.(params);
-                  if (animationId > -1) {
-                    this._animationId = animationId;
-                  } else {
-                    scroller.stopAnimation(this._animationId);
+                  const animationIds = scroller?.scrollTo?.(params);
+                  if (animationIds !== null) {
+                    this._animationIds = animationIds;
+                  } else if (this._animationIds !== null) {
+                    scroller.stopAnimation(...this._animationIds);
                   }
                   toEnd = true;
                 }
@@ -1387,13 +1387,13 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
                   const params: IScrollToParams = {
                     [TOP_PROP_NAME]: roundedMaxPositionAfterUpdateY,
                     behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    userAction: false, blending: scroller.hasAnimation(this._animationId), duration: this.animationParams().scrollToItem,
+                    userAction: false, blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
                   };
-                  const animationId = scroller?.scrollTo?.(params);
-                  if (animationId > -1) {
-                    this._animationId = animationId;
-                  } else {
-                    scroller.stopAnimation(this._animationId);
+                  const animationIds = scroller?.scrollTo?.(params);
+                  if (animationIds !== null) {
+                    this._animationIds = animationIds;
+                  } else if (this._animationIds !== null) {
+                    scroller.stopAnimation(...this._animationIds);
                   }
                   toEnd = true;
                 }
@@ -1684,7 +1684,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   }
 
   /**
-   * The method scrolls the scroll view and returns the animation id if the behavior is set to smooth or -1 
+   * The method scrolls the scroll view and returns the animation ids if the behavior is set to smooth or null 
    * if the behavior is set to auto, instant, or not set.
    */
   scrollTo(options: IScrollOptions) {
@@ -1698,8 +1698,10 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       duration = options?.duration;
     const scroller = this._scrollerComponent();
     if (!!scroller) {
-      scroller.scroll({ x, y, left, top, behavior, blending, ease, duration, userAction: true });
+      scroller.stopScrolling(true);
+      return scroller.scroll({ x, y, left, top, behavior, blending, ease, duration, userAction: true });
     }
+    return null;
   }
 
   /**

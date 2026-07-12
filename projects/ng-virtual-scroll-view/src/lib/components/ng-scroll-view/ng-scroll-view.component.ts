@@ -653,11 +653,11 @@ export class NgScrollView extends BaseScrollView {
         ).subscribe();
     }
 
-    hasAnimationX(id: number = -1) { return this._animatorX?.hasAnimation(id) ?? false; }
+    hasAnimationX(...ids: Array<number>) { return this._animatorX?.hasAnimation(...ids) ?? false; }
 
-    hasAnimationY(id: number = -1) { return this._animatorY?.hasAnimation(id) ?? false; }
+    hasAnimationY(...ids: Array<number>) { return this._animatorY?.hasAnimation(...ids) ?? false; }
 
-    hasAnimation(id: number = -1) { return this.hasAnimationX(id) || this.hasAnimationY(id); }
+    hasAnimation(...ids: Array<number>) { return this.hasAnimationX(...ids) || this.hasAnimationY(...ids); }
 
     protected updateDirectionX(position: number, prePosition: number) {
         const delta = (position - this._deltaX) - prePosition;
@@ -1316,8 +1316,9 @@ export class NgScrollView extends BaseScrollView {
         return false;
     }
 
-    scroll(params: IScrollToParams) {
-        const posX = params.x ?? params.left ?? null,
+    scroll(params: IScrollToParams): Array<number> | null {
+        const animationIds = [],
+            posX = params.x ?? params.left ?? null,
             posY = params.y ?? params.top ?? null,
             userAction = params.userAction ?? false,
             snap = params.snap ?? true,
@@ -1337,11 +1338,14 @@ export class NgScrollView extends BaseScrollView {
             prevY = this._y;
         if (behavior === AUTO || behavior === SMOOTH) {
             if (horizontalAxisEnabled && x !== null && prevX !== x) {
-                return this.animate('x', prevX, x, duration, ease, blending, userAction);
+                const id = this.animate('x', prevX, x, duration, ease, blending, userAction);
+                animationIds.push(id);
             }
             if (verticalAxisEnabled && y !== null && prevY !== y) {
-                return this.animate('y', prevY, y, duration, ease, blending, userAction);
+                const id = this.animate('y', prevY, y, duration, ease, blending, userAction);
+                animationIds.push(id);
             }
+            return animationIds;
         } else {
             if (horizontalAxisEnabled && x !== null && (x !== prevX || force)) {
                 if (x !== null) {
@@ -1376,7 +1380,7 @@ export class NgScrollView extends BaseScrollView {
                 this.updateDirectionY(y, this._y);
             }
         }
-        return -1;
+        return null;
     }
 
     protected emitScrollableEvent() {
@@ -1402,9 +1406,14 @@ export class NgScrollView extends BaseScrollView {
         this.move(x, y);
     }
 
-    stopAnimation(id: number) {
-        this._animatorX.stop(id);
-        this._animatorY.stop(id);
+    stopAnimation(...ids: Array<number>) {
+        if (!ids) {
+            return;
+        }
+        for (const id of ids) {
+            this._animatorX.stop(id);
+            this._animatorY.stop(id);
+        }
     }
 
     ngOnDestroy(): void {

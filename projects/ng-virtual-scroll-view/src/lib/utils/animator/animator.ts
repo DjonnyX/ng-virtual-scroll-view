@@ -125,8 +125,8 @@ export class Animator {
     return this._currentId;
   }
 
-  hasAnimation(id: number = -1) {
-    if ((this._currentId === id || id === -1) && this.animated) {
+  hasAnimation(...ids: Array<number>) {
+    if ((!!ids && ids.indexOf(this._currentId) > -1) && this.animated) {
       return true;
     }
     return false;

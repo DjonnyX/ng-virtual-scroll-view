@@ -515,7 +515,7 @@ export class NgScrollerComponent extends NgScrollView {
     this.fireScrollEvent(true);
   }
 
-  scrollTo(params: IScrollToParams): number {
+  scrollTo(params: IScrollToParams): Array<number> | null {
     const userAction = params?.userAction ?? true;
     if (userAction) {
       this._isScrollbarUserActionX = this._isScrollbarUserActionY = false;
