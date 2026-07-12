@@ -1698,7 +1698,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       duration = options?.duration;
     const scroller = this._scrollerComponent();
     if (!!scroller) {
-      scroller.scroll({ x, y, left, top, behavior, blending, ease, duration });
+      scroller.scroll({ x, y, left, top, behavior, blending, ease, duration, userAction: true });
     }
   }
 
