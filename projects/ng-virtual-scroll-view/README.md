@@ -97,6 +97,14 @@ Outputs
 
 <br/>
 
+Methods
+
+| Method | Type | Description |
+|--|--|--|
+| scrollTo | (options: [IScrollOptions](https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/interfaces/scroll-options.ts)) | The method scrolls the scroll view and returns the animation id if the behavior is set to smooth or -1 if the behavior is set to auto, instant, or not set. |
+
+<br/>
+
 ### [VirtualClickModule](https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/directives/item-click/item-click.module.ts)
 
 ### Virtual click directive
