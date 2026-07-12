@@ -23,15 +23,6 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
 
   private _nextComponentId: number = 0;
 
-  // private _$scrollTo = new Subject<IScrollToParams | undefined>();
-  // readonly $scrollTo = this._$scrollTo.asObservable();
-
-  // private _$scrollToStart = new Subject<IScrollOptions | undefined>();
-  // readonly $scrollToStart = this._$scrollToStart.asObservable();
-
-  // private _$scrollToEnd = new Subject<IScrollOptions | undefined>();
-  // readonly $scrollToEnd = this._$scrollToEnd.asObservable();
-
   private _$tick = new Subject<void>();
   readonly $tick = this._$tick.asObservable();
 
@@ -186,42 +177,27 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
     }
   }
 
-  /**
-    * The method scrolls the list to the element with the given `id` and returns the value of the scrolled area.
-    */
-  // scrollTo(id: Id, cb: (() => void) | null = null, options: IScrollOptions | null = null) {
-  //   this._$scrollTo.next({ id, cb, options });
-  // }
-
   update(immediately: boolean = false) { }
 
   /**
    * Scrolls the scroll area to the first item in the collection.
    */
-  scrollToLeft(options?: IScrollOptions) {
-    // this._$scrollToStart.next(options);
-  }
+  scrollToLeft(options?: IScrollOptions) { }
 
   /**
    * Scrolls the list to the end of the content size.
    */
-  scrollToRight(options?: IScrollOptions) {
-    // this._$scrollToEnd.next(options);
-  }
+  scrollToRight(options?: IScrollOptions) { }
 
   /**
    * Scrolls the scroll area to the first item in the collection.
    */
-  scrollToTop(options?: IScrollOptions) {
-    // this._$scrollToStart.next(options);
-  }
+  scrollToTop(options?: IScrollOptions) { }
 
   /**
    * Scrolls the list to the end of the content size.
    */
-  scrollToBottom(options?: IScrollOptions) {
-    // this._$scrollToEnd.next(options);
-  }
+  scrollToBottom(options?: IScrollOptions) { }
 
   ngOnDestroy() {
     if (this._tickerId !== null) {

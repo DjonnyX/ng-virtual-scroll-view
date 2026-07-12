@@ -1,5 +1,5 @@
 import {
-    Component, computed, inject, input, Signal, signal, ViewChild,
+    Component, computed, inject, input, Signal, ViewChild,
 } from '@angular/core';
 import { CdkScrollable } from '@angular/cdk/scrolling';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
@@ -16,7 +16,7 @@ import {
     MAX_VELOCITY_TIMESTAMP, OVERSCROLL_START_ITERATION, SCROLL_EVENT, SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SMOOTH, SPEED_SCALE, TOP,
 } from './const';
 import { calculateDirection, matrix3d } from './utils';
-import { BaseScrollView } from './base/base-scroll-view.component';
+import { BaseScrollView } from './base';
 import { IAnimationParams, IPoint, IScrollingSettings, ISize } from '../../interfaces';
 import { SnapToItemAligns, TextDirections } from '../../enums';
 import { Id, ScrollDirection, SnappingDistance, SnapToItemAlign } from '../../types';
@@ -68,7 +68,7 @@ export class NgScrollView extends BaseScrollView {
     private _scrollDirectionValueY: number = 0;
 
     private _$scrollDirectionX = new BehaviorSubject<ScrollDirection>(0);
-    protected $scrollDirectionX = this._$scrollDirectionX.asObservable();
+    readonly $scrollDirectionX = this._$scrollDirectionX.asObservable();
     set scrollDirectionX(v: ScrollDirection) {
         if (this.scrollDirectionX !== v) {
             this._$scrollDirectionX.next(v);
@@ -79,7 +79,7 @@ export class NgScrollView extends BaseScrollView {
     }
 
     private _$scrollDirectionY = new BehaviorSubject<ScrollDirection>(0);
-    protected $scrollDirectionY = this._$scrollDirectionY.asObservable();
+    readonly $scrollDirectionY = this._$scrollDirectionY.asObservable();
     set scrollDirectionY(v: ScrollDirection) {
         if (this.scrollDirectionY !== v) {
             this._$scrollDirectionY.next(v);
