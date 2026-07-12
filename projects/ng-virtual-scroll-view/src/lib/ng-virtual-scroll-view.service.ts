@@ -7,7 +7,6 @@ import { Directions, TextDirections } from './enums';
 import { Direction, TextDirection } from './types';
 import { DEFAULT_ANIMATION_PARAMS, DEFAULT_CLICK_DISTANCE, DEFAULT_SNAP_TO_ITEM } from './const';
 import { Id } from './types';
-import { IScrollToParams } from './interfaces/scroll-to-params';
 
 /**
  * NgVirtualScrollViewService
@@ -24,8 +23,8 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
 
   private _nextComponentId: number = 0;
 
-  private _$scrollTo = new Subject<IScrollToParams | undefined>();
-  readonly $scrollTo = this._$scrollTo.asObservable();
+  // private _$scrollTo = new Subject<IScrollToParams | undefined>();
+  // readonly $scrollTo = this._$scrollTo.asObservable();
 
   // private _$scrollToStart = new Subject<IScrollOptions | undefined>();
   // readonly $scrollToStart = this._$scrollToStart.asObservable();

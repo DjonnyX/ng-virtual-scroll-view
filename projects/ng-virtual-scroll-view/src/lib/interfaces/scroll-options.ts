@@ -1,3 +1,5 @@
+import { Easing } from "../utils/animator";
+
 /**
  * Interface IScrollOptions.
  * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/interfaces/scroll-options.ts
@@ -5,24 +7,12 @@
  * @email djonnyx@gmail.com
  */
 export interface IScrollOptions {
-    /**
-     * Default value is `0`.
-     */
-    iteration?: number;
-    /**
-     * Scroll behavior. Default value is `instant`.
-     */
-    behavior?: ScrollBehavior | 'auto' | 'instant' | 'smooth';
-    /**
-     * Specifies whether scrolling will smoothly transition to the previous animation. Default value is false.
-     */
+    x?: number | null;
+    y?: number | null;
+    left?: number | null;
+    top?: number | null;
     blending?: boolean;
-    /**
-     * Determines whether the element will have focus after scrolling is complete. Default value is true.
-     */
-    focused?: boolean;
-    /**
-     * Delay.
-     */
-    delay?: number;
+    behavior?: ScrollBehavior;
+    ease?: Easing;
+    duration?: number;
 }

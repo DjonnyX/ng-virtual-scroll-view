@@ -16,7 +16,7 @@ import {
   DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH, DEFAULT_SCROLLABLE,
 } from './const';
 import {
-  IScrollEvent, IAnimationParams, ISize, IScrollingSettings,
+  IScrollEvent, IAnimationParams, ISize, IScrollingSettings, IScrollOptions,
 } from './interfaces';
 import {
   Alignment, ArithmeticExpression, Id, SnappingDistance, Direction, SnapToItemAlign, TextDirection,
@@ -34,7 +34,6 @@ import {
 import { objectAsReadonly } from './utils/object';
 import { NgScrollerComponent } from './components/ng-scroller/ng-scroller.component';
 import { IScrollToParams } from './components/ng-scroll-view';
-import { IScrollParams } from './interfaces';
 import { isPercentageValue } from './utils/is-persentage-value';
 import { parseArithmeticExpression } from './utils/parse-arithmetic-expression';
 import { isSpreadingMode } from './utils/is-spreading-mode';
@@ -832,9 +831,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   protected _alignmentScrollBottomOffset = signal<number>(0);
 
   private _elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
-
-  private _$scrollTo = new Subject<IScrollParams>();
-  protected $scrollTo = this._$scrollTo.asObservable();
 
   private _$scroll = new Subject<IScrollEvent>();
   readonly $scroll = this._$scroll.asObservable();
@@ -1687,135 +1683,24 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     }
   }
 
-  // private resetBoundsSize(isVertical: boolean, totalSize: number) {
-  //   const l = this._list(), prop = isVertical ? HEIGHT_PROP_NAME : WIDTH_PROP_NAME,
-  //     size = totalSize;
-  //   if (!!l && parseInt(l.nativeElement.style[prop]) !== size) {
-  //     l.nativeElement.style[prop] = `${size}${PX}`;
-  //   }
-  // }
-
-  // /**
-  //  * The method scrolls the list to the element with the given `id` and returns the value of the scrolled area.
-  //  */
-  // scrollTo(id: Id, cb: (() => void) | null = null, options: IScrollOptions | null = null) {
-  //   const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
-  //     blending = options?.blending ?? false,
-  //     focused = options?.focused ?? true,
-  //     delay = options?.delay ?? 0,
-  //     iteration = options?.iteration ?? 0;
-  //   validateId(id);
-  //   validateScrollBehavior(behavior);
-  //   validateIteration(iteration);
-  //   const actualIteration = validateScrollIteration(iteration);
-  //   this._elementRef.nativeElement.focus();
-  //   if (!this._scrollerComponent()?.scrollable && !this._isInfinity()) {
-  //     this.scrollToFinalize(id, focused, cb);
-  //     return;
-  //   }
-  //   this._$scrollTo.next({
-  //     id, behavior, blending, delay, iteration: actualIteration, isLastIteration: actualIteration === MAX_SCROLL_TO_ITERATIONS, cb: () => {
-  //       this.scrollToFinalize(id, focused, cb);
-  //     }
-  //   });
-  // }
-
-  // /**
-  //  * Scrolls the scroll area to the first item in the collection.
-  //  */
-  // scrollToStart(cb: (() => void) | null = null, options: IScrollOptions | null = null) {
-  //   const scroller = this._scrollerComponent();
-  //   if (!!scroller) {
-  //     const scrollSize = this.isVertical ? scroller.scrollTop : scroller.scrollLeft;
-  //     if (scrollSize === 0) {
-  //       return;
-  //     }
-  //     scroller.stopScrolling();
-  //   }
-  //   const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
-  //     blending = options?.blending ?? false,
-  //     focused = options?.focused ?? true,
-  //     delay = options?.delay ?? 0,
-  //     iteration = options?.iteration ?? 0;
-  //   validateScrollBehavior(behavior);
-  //   validateIteration(iteration);
-  //   const trackBy = this.trackBy(), items = this._actualItems(), firstItem = items.length > 0 ? items[0] ?? null : null, id = firstItem?.[trackBy] ?? null,
-  //     actualIteration = validateScrollIteration(iteration);
-  //   if (!!firstItem) {
-  //     this._elementRef.nativeElement.focus();
-  //     this._$scrollTo.next({
-  //       id, behavior, blending, delay, iteration: actualIteration, isLastIteration: actualIteration === MAX_SCROLL_TO_ITERATIONS, cb: () => {
-  //         this._isScrollLeft.set(true);
-  //         this._trackBox.isScrollStart = true;
-  //         this._trackBox._isScrollRight = false;
-  //         this._$fireUpdate.next(true);
-  //         this.scrollToFinalize(id, focused, cb);
-  //       }
-  //     });
-  //   }
-  // }
-
-  // /**
-  //  * @deprecated
-  //  * The scrollToEndItem method is deprecated. Use the scrollToEnd method.
-  //  */
-  // scrollToEndItem(cb?: () => void, options?: IScrollOptions) {
-  //   throw Error('The scrollToEndItem method is deprecated. Use the scrollToEnd method.');
-  // }
-
-  // /**
-  //  * Scrolls the list to the end of the content size.
-  //  */
-  // scrollToEnd(cb: (() => void) | null = null, options: IScrollOptions | null = null) {
-  //   const scroller = this._scrollerComponent();
-  //   if (!!scroller) {
-  //     const isVertical = this.isVertical,
-  //       scrollSize = isVertical ? scroller.scrollTop : scroller.scrollLeft,
-  //       maxScrollSize = isVertical ? scroller.scrollHeight : scroller.scrollTop;
-  //     if (scrollSize === maxScrollSize) {
-  //       return;
-  //     }
-  //     scroller.stopScrolling();
-  //   }
-  //   const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
-  //     blending = options?.blending ?? false,
-  //     focused = options?.focused ?? true,
-  //     delay = options?.delay ?? 0,
-  //     iteration = options?.iteration ?? 0;
-  //   validateScrollBehavior(behavior);
-  //   validateIteration(iteration);
-  //   const trackBy = this.trackBy(), items = this._actualItems(), latItem = items[items.length > 0 ? items.length - 1 : 0], id = latItem?.[trackBy] ?? null,
-  //     actualIteration = validateScrollIteration(iteration);
-  //   if (latItem === null) {
-  //     return;
-  //   }
-  //   this._elementRef.nativeElement.focus();
-  //   if (!this._scrollerComponent()?.scrollable) {
-  //     this.scrollToFinalize(id, focused, cb);
-  //     return;
-  //   }
-  //   this._$scrollTo.next({
-  //     id, behavior, blending, delay, iteration: actualIteration, isLastIteration: actualIteration === MAX_SCROLL_TO_ITERATIONS, cb: () => {
-  //       this._isScrollRight.set(true);
-  //       this._trackBox.isScrollStart = false;
-  //       this._trackBox._isScrollRight = true;
-  //       this._$fireUpdate.next(true);
-  //       this.scrollToFinalize(id, focused, cb);
-  //     }
-  //   });
-  // }
-
-  // private scrollToFinalize(id: Id, focused: boolean, cb: (() => void) | null) {
-  //   if (focused) {
-  //     const el = this._service.getFocusedElementById(id);
-  //     if (!!el) {
-  //       this._service.focus(el, FocusAlignments.NONE);
-  //     }
-  //   }
-  //   if (typeof cb === 'function') {
-  //     cb?.();
-  //   }
-  // }
+  /**
+   * The method scrolls the scroll view and returns the animation id if the behavior is set to smooth or -1 
+   * if the behavior is set to auto, instant, or not set.
+   */
+  scrollTo(options: IScrollOptions) {
+    const behavior = options?.behavior ?? BEHAVIOR_INSTANT,
+      blending = options?.blending ?? false,
+      x = options?.x,
+      y = options?.y,
+      left = options?.left,
+      top = options?.top,
+      ease = options?.ease,
+      duration = options?.duration;
+    const scroller = this._scrollerComponent();
+    if (!!scroller) {
+      scroller.scroll({ x, y, left, top, behavior, blending, ease, duration });
+    }
+  }
 
   /**
    * Prevents the list from snapping to its start or end edge.
