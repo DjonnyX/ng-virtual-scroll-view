@@ -706,14 +706,14 @@ export class NgScrollView extends BaseScrollView {
             const timeDelta = time - this._measureVelocityTimestampX,
                 positionDelta = Math.abs(positionX - this._measureVelocityLastPositionX),
                 velocity = timeDelta > 0 ? positionDelta / timeDelta : 0;
-            let avgVelocity = this._velocitiesX.length > 0 ? this._velocitiesX.reduce((p, c) => p + c) : 0;
+            let avgVelocityX = this._velocitiesX.length > 0 ? this._velocitiesX.reduce((p, c) => p + c) : 0;
             if (this._velocitiesX.length >= MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS) {
                 this._velocitiesX.shift();
             }
-            avgVelocity += velocity;
+            avgVelocityX += velocity;
             this._$velocityX.next(velocity);
             this._velocitiesX.push(velocity);
-            this._$averageVelocityX.next(avgVelocity / MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS);
+            this._$averageVelocityX.next(avgVelocityX / MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS);
             this._measureVelocityLastPositionX = positionX;
             this._measureVelocityTimestampX = time;
         }
@@ -721,14 +721,14 @@ export class NgScrollView extends BaseScrollView {
             const timeDelta = time - this._measureVelocityTimestampY,
                 positionDelta = Math.abs(positionY - this._measureVelocityLastPositionY),
                 velocity = timeDelta > 0 ? positionDelta / timeDelta : 0;
-            let avgVelocity = this._velocitiesY.length > 0 ? this._velocitiesY.reduce((p, c) => p + c) : 0;
+            let avgVelocityY = this._velocitiesY.length > 0 ? this._velocitiesY.reduce((p, c) => p + c) : 0;
             if (this._velocitiesY.length >= MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS) {
                 this._velocitiesY.shift();
             }
-            avgVelocity += velocity;
+            avgVelocityY += velocity;
             this._$velocityY.next(velocity);
             this._velocitiesY.push(velocity);
-            this._$averageVelocityY.next(avgVelocity / MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS);
+            this._$averageVelocityY.next(avgVelocityY / MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS);
             this._measureVelocityLastPositionY = positionY;
             this._measureVelocityTimestampY = time;
         }
