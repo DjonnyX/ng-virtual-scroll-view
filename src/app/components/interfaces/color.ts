@@ -1,6 +1,6 @@
 /**
  * Color
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/types/color.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/20.x/projects/ng-virtual-scroll-view/src/lib/types/color.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

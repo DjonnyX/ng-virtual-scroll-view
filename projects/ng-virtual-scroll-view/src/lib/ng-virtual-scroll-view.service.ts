@@ -10,7 +10,7 @@ import { Id } from './types';
 
 /**
  * NgVirtualScrollViewService
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.service.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/20.x/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.service.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

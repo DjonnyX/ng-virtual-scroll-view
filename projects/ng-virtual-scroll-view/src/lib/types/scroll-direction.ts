@@ -1,7 +1,7 @@
 /**
  * A value of -1 indicates the direction is up or left (if the list direction is horizontal).
  * A value of 1 indicates the direction is down or right (if the list direction is horizontal).
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/types/scroll-direction.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/20.x/projects/ng-virtual-scroll-view/src/lib/types/scroll-direction.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
