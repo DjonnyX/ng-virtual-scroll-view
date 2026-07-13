@@ -1,15 +1,14 @@
-import { DestroyRef, Directive, ElementRef, inject, Input, output } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, combineLatest, fromEvent, of, race } from 'rxjs';
+import { Directive, ElementRef, inject, Input, Output, OnDestroy, EventEmitter } from '@angular/core';
+import { Subject, BehaviorSubject, combineLatest, fromEvent, of, race } from 'rxjs';
 import { filter, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { DEFAULT_CLICK_DISTANCE } from '../../const';
-import { SCROLL_VIEW_SERVICE } from '../../components/ng-scroll-view/const';
+import { SCROLL_VIEW_SERVICE } from '../../../public-api';
 
 /**
  * VirtualClickDirective
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/directives/item-click/item-click.directive.ts
+ * @link https://github.com/DjonnyX/ng-virtual-list/blob/18.x/projects/ng-virtual-list/src/lib/directives/item-click/item-click.directive.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -17,7 +16,9 @@ import { SCROLL_VIEW_SERVICE } from '../../components/ng-scroll-view/const';
     selector: '[virtualClick]',
     standalone: false,
 })
-export class VirtualClickDirective {
+export class VirtualClickDirective implements OnDestroy {
+    protected _$unsubscribe = new Subject<void>();
+
     private _$maxDistance = new BehaviorSubject<number | null>(null);
     protected $maxDistance = this._$maxDistance.asObservable();
 
@@ -30,22 +31,23 @@ export class VirtualClickDirective {
         this._$maxDistance.next(value);
     }
 
-    onVirtualClick = output<PointerEvent | TouchEvent>();
+    @Output()
+    onVirtualClick = new EventEmitter<PointerEvent | TouchEvent>();
 
-    onVirtualClickPress = output<PointerEvent | TouchEvent>();
+    @Output()
+    onVirtualClickPress = new EventEmitter<PointerEvent | TouchEvent>();
 
-    onVirtualClickCancel = output<void>();
+    @Output()
+    onVirtualClickCancel = new EventEmitter<void>();
 
     private _service = inject(SCROLL_VIEW_SERVICE);
 
     private _elementRef = inject(ElementRef);
 
-    private _destroyRef = inject(DestroyRef);
-
     constructor() {
         let maxDistance = this._maxDistance ?? DEFAULT_CLICK_DISTANCE;
         combineLatest([this._service.$clickDistance, this.$maxDistance]).pipe(
-            takeUntilDestroyed(),
+            takeUntil(this._$unsubscribe),
             tap(([clickDistance, distance]) => {
                 maxDistance = distance === null ? clickDistance : distance;
             }),
@@ -54,32 +56,32 @@ export class VirtualClickDirective {
         const $pointerPressed = fromEvent<PointerEvent>(this._elementRef.nativeElement, 'pointerdown'),
             $pointerCancel = race([
                 fromEvent(window, 'pointerup').pipe(
-                    takeUntilDestroyed(),
+                    takeUntil(this._$unsubscribe),
                 ),
                 fromEvent<PointerEvent>(window, 'pointerleave').pipe(
-                    takeUntilDestroyed(),
+                    takeUntil(this._$unsubscribe),
                 ),
             ]),
             $pointerRelease = fromEvent<PointerEvent>(this._elementRef.nativeElement, 'pointerup', { passive: false });
 
         $pointerPressed.pipe(
-            takeUntilDestroyed(),
+            takeUntil(this._$unsubscribe),
             switchMap(e => {
                 const x = Math.abs(e.clientX),
                     y = Math.abs(e.clientY);
                 this.onVirtualClickPress.emit(e);
                 return $pointerRelease.pipe(
-                    takeUntilDestroyed(this._destroyRef),
+                    takeUntil(this._$unsubscribe),
                     takeUntil(
                         race([
                             $pointerCancel.pipe(
-                                takeUntilDestroyed(this._destroyRef),
+                                takeUntil(this._$unsubscribe),
                                 tap(() => {
                                     this.onVirtualClickCancel.emit();
                                 }),
                             ),
                             fromEvent<PointerEvent>(window, 'pointermove').pipe(
-                                takeUntilDestroyed(this._destroyRef),
+                                takeUntil(this._$unsubscribe),
                                 switchMap(e => {
                                     const xx = x - Math.abs(e.clientX),
                                         yy = y - Math.abs(e.clientY),
@@ -96,7 +98,7 @@ export class VirtualClickDirective {
                             ),
                         ]),
                     ),
-                    takeUntilDestroyed(this._destroyRef),
+                    takeUntil(this._$unsubscribe),
                     tap(e => {
                         if (e) {
                             this.onVirtualClick.emit(e);
@@ -105,5 +107,12 @@ export class VirtualClickDirective {
                 );
             }),
         ).subscribe();
+    }
+
+    ngOnDestroy(): void {
+        if (this._$unsubscribe) {
+            this._$unsubscribe.next();
+            this._$unsubscribe.complete();
+        }
     }
 }
