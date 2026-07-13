@@ -29,7 +29,7 @@ import { ScrollerDirection } from './enums';
  * NgScrollView
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/main/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/ng-scroll-view.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-grid/blob/19.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/ng-scroll-view.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

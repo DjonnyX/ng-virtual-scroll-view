@@ -11,7 +11,7 @@ import { GradientColorPositions, NgScrollBarPublicService, ScrollbarStates } fro
  * ScrollBar component.
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/src/app/components/custom-scrollbar/custom-scrollbar.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/src/app/components/custom-scrollbar/custom-scrollbar.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

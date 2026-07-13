@@ -9,7 +9,7 @@ import { SCROLL_VIEW_SERVICE } from '../../components/ng-scroll-view/const';
  * VirtualClickDirective
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/directives/item-click/item-click.directive.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/19.x/projects/ng-virtual-scroll-view/src/lib/directives/item-click/item-click.directive.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
