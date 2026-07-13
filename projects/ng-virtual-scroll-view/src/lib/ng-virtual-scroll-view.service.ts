@@ -1,7 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
-import { combineLatest, distinctUntilChanged, Subject, tap } from 'rxjs';
+import { combineLatest, distinctUntilChanged, Subject, takeUntil, tap } from 'rxjs';
 import { IAnimationParams, IRect, IScrollOptions, IScrollViewService } from './interfaces';
 import { Directions, TextDirections } from './enums';
 import { Direction, TextDirection } from './types';
@@ -10,7 +9,7 @@ import { Id } from './types';
 
 /**
  * NgVirtualScrollViewService
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.service.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.service.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -18,6 +17,8 @@ import { Id } from './types';
   providedIn: 'root'
 })
 export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy {
+  protected _$unsubscribe = new Subject<void>();
+
   private _id: number = 0;
   get id() { return this._id; }
 
@@ -126,14 +127,14 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
 
   constructor() {
     const $grabbing = this.$grabbing.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
     ), $clickPressed = this.$clickPressed.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
     );
     combineLatest([$grabbing, $clickPressed]).pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(([grabbing, clickPressed]) => {
         this._$isGrabbing.next(grabbing && !clickPressed);
       }),
@@ -203,6 +204,11 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
     if (this._tickerId !== null) {
       cancelAnimationFrame(this._tickerId);
       this._tickerId = null;
+    }
+
+    if (this._$unsubscribe) {
+      this._$unsubscribe.next();
+      this._$unsubscribe.complete();
     }
   }
 }

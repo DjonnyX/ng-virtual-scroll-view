@@ -6,7 +6,7 @@ import { ICalculateScrollParams, ICalculateScrollPositionParams, ICalculateScrol
  * ScrollBox
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/components/scroller/utils/scroll-box.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/utils/scroll-box.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

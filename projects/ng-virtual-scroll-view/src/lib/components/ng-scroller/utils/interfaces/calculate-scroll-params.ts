@@ -2,7 +2,7 @@ import { ScrollerDirections } from "../../../ng-scroll-view/enums";
 
 /**
  * ICalculateScrollMetrics
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/components/scroller/utils/interfaces/calculate-scroll-params.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/utils/interfaces/calculate-scroll-params.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
