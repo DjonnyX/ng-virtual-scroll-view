@@ -3,7 +3,7 @@ import { GradientColor, RoundedCorner } from "../../interfaces";
 
 /**
  * ScrollBarTheme
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/src/app/components/custom-scrollbar/interfaces/custom-scrollbar-theme.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/22.x/src/app/components/custom-scrollbar/interfaces/custom-scrollbar-theme.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

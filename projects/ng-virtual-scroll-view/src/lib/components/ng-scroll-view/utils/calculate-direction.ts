@@ -1,6 +1,6 @@
 /**
  * calculateDirection
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/main/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/calculate-direction.ts
+ * @link https://github.com/DjonnyX/ng-virtual-grid/blob/22.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/calculate-direction.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
