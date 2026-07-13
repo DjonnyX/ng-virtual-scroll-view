@@ -22,7 +22,7 @@ import { ScrollerDirection } from '../ng-scroll-view/enums';
  * ScrollBar component.
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-bar/ng-scroll-bar.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/21.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-bar/ng-scroll-bar.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

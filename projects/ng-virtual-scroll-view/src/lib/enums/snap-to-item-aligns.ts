@@ -1,6 +1,6 @@
 /**
  * SnapToAtemAligns.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/enums/snap-to-item-aligns.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/21.x/projects/ng-virtual-scroll-view/src/lib/enums/snap-to-item-aligns.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
