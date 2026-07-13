@@ -2,7 +2,7 @@ import { INSTANT_VELOCITY_SCALE } from "../const";
 
 /**
  * calculateVelocity
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/main/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/calculate-velocity.ts
+ * @link https://github.com/DjonnyX/ng-virtual-grid/blob/22.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/calculate-velocity.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
