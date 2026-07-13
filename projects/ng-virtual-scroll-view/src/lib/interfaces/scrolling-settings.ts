@@ -6,7 +6,7 @@
  * - maxDuration - Maximum animation duration. Default value is `4000`.
  * - speedScale - Speed scale. Default value is `15`.
  * - optimization - Enables scrolling performance optimization. Default value is `true`.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/interfaces/scrolling-settings.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/15.x/projects/ng-virtual-scroll-view/src/lib/interfaces/scrolling-settings.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

@@ -1,48 +1,46 @@
-@let filtered = motionBlurEnabled();
-@let prepared = preparedSignal();
-@let textDir = langTextDir();
-<div localeSensitive [langTextDir]="textDir" [listDir]="direction()" class="ngvs__container"
-    [ngClass]="containerClasses()">
+<div localeSensitive [langTextDir]="($langTextDir | async)!" [listDir]="($direction | async)!" class="ngvs__container"
+    [ngClass]="($containerClasses | async)!">
     <svg part="viewport" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
         xmlns:xlink="http://www.w3.org/1999/xlink">
         <filter [id]="_filterId">
             <feGaussianBlur #filter></feGaussianBlur>
         </filter>
         <foreignObject xmlns="http://www.w3.org/1999/xhtml" width="100%" height="100%" class="ngvs__viewport">
-            <div class="ngvs__scroller-wrapper" [class.filtered]="filtered"
-                [style.filter]="filtered ? _filter : 'unset'">
+            <div class="ngvs__scroller-wrapper" [class.filtered]="($motionBlurEnabled | async)!"
+                [style.filter]="(($motionBlurEnabled | async)! ? _filter : 'unset')">
                 <div cdkScrollable #scrollViewport part="scroller" class="ngvs__scroller">
-                    <div #scrollContent [attr.aria-orientation]="direction()"
-                        [attr.aria-activedescendant]="focusedElement()" tabindex="0" part="content"
-                        class="ngvs__content" [ngClass]="actualClasses()" [ngStyle]="listStyles()">
+                    <div #scrollContent [attr.aria-orientation]="($direction | async)!"
+                        [attr.aria-activedescendant]="($focusedElement | async)!" tabindex="0" part="content"
+                        class="ngvs__content" [ngClass]="($actualClasses | async)!" [ngStyle]="($listStyles | async)!">
                         <ng-content></ng-content>
                     </div>
                 </div>
             </div>
         </foreignObject>
     </svg>
-    @if (scrollbarEnabled()) {
-        @if (scrollbarVerticalEnabled()) {
-            <ng-scroll-bar #scrollBarVertical direction="vertical" [size]="thumbSizeVertical()"
-                [renderer]="scrollbarThumbRenderer()" [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()"
-                [loading]="loading()" [overlapping]="overlappingScrollbar()"
-                [thumbGradientPositions]="thumbGradientPositionsVertical()" [prepared]="prepared"
-                [interactive]="scrollbarInteractive()" [show]="scrollbarVerticalEnabled() && scrollbarEnabled() && prepared"
-                [topOffset]="topOffset()" [langTextDir]="textDir" [bottomOffset]="bottomOffset()"
-                [overscrollEnabled]="overscrollEnabled()" [scrollBehavior]="scrollBehavior()"
-                [scrollbarMinSize]="scrollbarMinSize()" (onDrag)="onScrollBarDragHandler($event)"
-                (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
-        }
-        @if (scrollbarHorizontalEnabled()) {
-            <ng-scroll-bar #scrollBarHorizontal direction="horizontal" [size]="thumbSizeHorizontal()"
-                [renderer]="scrollbarThumbRenderer()" [thickness]="scrollbarThickness()" [params]="scrollbarThumbParams()"
-                [loading]="loading()" [overlapping]="overlappingScrollbar()"
-                [thumbGradientPositions]="thumbGradientPositionsHorizontal()" [prepared]="prepared"
-                [interactive]="scrollbarInteractive()" [show]="scrollbarHorizontalEnabled() && scrollbarEnabled() && prepared"
-                [leftOffset]="leftOffset()" [langTextDir]="textDir" [rightOffset]="rightOffset()"
-                [overscrollEnabled]="overscrollEnabled()" [scrollBehavior]="scrollBehavior()"
-                [scrollbarMinSize]="scrollbarMinSize()" (onDrag)="onScrollBarDragHandler($event)"
-                (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
-        }
-    }
+    <ng-container *ngIf="($scrollbarEnabled | async)!">
+        <ng-scroll-bar *ngIf="($scrollbarVerticalEnabled | async)!" #scrollBarVertical direction="vertical"
+            [size]="($thumbSizeVertical | async)!" [renderer]="($scrollbarThumbRenderer | async)!"
+            [thickness]="($scrollbarThickness | async)!" [params]="($scrollbarThumbParams | async)!"
+            [loading]="($loading | async)!" [overlapping]="($overlappingScrollbar | async)!"
+            [thumbGradientPositions]="($thumbGradientPositionsVertical | async)!"
+            [prepared]="($preparedSignal | async)!" [interactive]="($scrollbarInteractive | async)!"
+            [show]="($scrollbarVerticalShow | async)!" [topOffset]="($topOffset | async)!"
+            [langTextDir]="($langTextDir | async)!" [bottomOffset]="($bottomOffset | async)!"
+            [overscrollEnabled]="($overscrollEnabled | async)!" [scrollBehavior]="($scrollBehavior | async)!"
+            [scrollbarMinSize]="($scrollbarMinSize | async)!" (onDrag)="onScrollBarDragHandler($event)"
+            (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
+
+        <ng-scroll-bar *ngIf="($scrollbarHorizontalEnabled | async)!" #scrollBarHorizontal direction="horizontal"
+            [size]="($thumbSizeHorizontal | async)!" [renderer]="($scrollbarThumbRenderer | async)!"
+            [thickness]="($scrollbarThickness | async)!" [params]="($scrollbarThumbParams | async)!"
+            [loading]="($loading | async)!" [overlapping]="($overlappingScrollbar | async)!"
+            [thumbGradientPositions]="($thumbGradientPositionsHorizontal | async)!"
+            [prepared]="($preparedSignal | async)!" [interactive]="($scrollbarInteractive | async)!"
+            [show]="($scrollbarHorizontalShow | async)!" [leftOffset]="($leftOffset | async)!"
+            [langTextDir]="($langTextDir | async)!" [rightOffset]="($rightOffset | async)!"
+            [overscrollEnabled]="($overscrollEnabled | async)!" [scrollBehavior]="($scrollBehavior | async)!"
+            [scrollbarMinSize]="($scrollbarMinSize | async)!" (onDrag)="onScrollBarDragHandler($event)"
+            (onDragEnd)="onScrollBarDragEndHandler($event)"></ng-scroll-bar>
+    </ng-container>
 </div>

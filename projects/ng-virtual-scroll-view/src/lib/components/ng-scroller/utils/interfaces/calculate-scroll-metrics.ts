@@ -1,6 +1,6 @@
 /**
  * ICalculateScrollMetrics
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/components/scroller/utils/interfaces/calculate-scroll-metrics.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/15.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/utils/interfaces/calculate-scroll-metrics.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

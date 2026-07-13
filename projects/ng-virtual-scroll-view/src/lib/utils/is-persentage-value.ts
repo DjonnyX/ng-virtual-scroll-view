@@ -2,7 +2,7 @@ import { PERCENTAGE_VALUE_PATTERN } from "../const";
 
 /**
  * isPercentageValue
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/utils/is-persentage-value.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/15.x/projects/ng-virtual-scroll-view/src/lib/utils/is-persentage-value.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
