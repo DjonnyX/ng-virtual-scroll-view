@@ -18,7 +18,7 @@ const calculate = (exp: string, reference: number, operator: -1 | 1 = 1) => {
 
 /**
  * parseArithmeticExpression
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/utils/parse-arithmetic-expression.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/16.x/projects/ng-virtual-scroll-view/src/lib/utils/parse-arithmetic-expression.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

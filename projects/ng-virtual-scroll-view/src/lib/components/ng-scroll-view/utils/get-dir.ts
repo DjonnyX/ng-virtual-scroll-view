@@ -1,6 +1,6 @@
 /**
  * getDir
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/main/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/get-dir.ts
+ * @link https://github.com/DjonnyX/ng-virtual-grid/blob/16.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/get-dir.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

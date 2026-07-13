@@ -1,10 +1,8 @@
 import {
-  ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input,
-  OnDestroy, output, Signal, signal, TemplateRef, viewChild, ViewEncapsulation,
+  ChangeDetectionStrategy, Component, ElementRef, EventEmitter, inject, Injector, Input, OnDestroy, Output, TemplateRef, ViewChild, ViewEncapsulation,
 } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import {
-  BehaviorSubject, combineLatest, debounceTime, distinctUntilChanged, filter, map, skip, Subject, switchMap, take, tap,
+  BehaviorSubject, combineLatest, debounceTime, distinctUntilChanged, filter, map, Observable, of, skip, Subject, switchMap, take, takeUntil, tap,
 } from 'rxjs';
 import {
   BEHAVIOR_INSTANT, CLASS_SCROLL_VIEW_HORIZONTAL, CLASS_SCROLL_VIEW_VERTICAL, DEFAULT_DIRECTION, DEFAULT_LIST_SIZE, LEFT_PROP_NAME,
@@ -13,17 +11,17 @@ import {
   DEFAULT_ANIMATION_PARAMS, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLING_SETTINGS, DEFAULT_SNAP_TO_ITEM, DEFAULT_SNAP_TO_ITEM_ALIGN,
   DEFAULT_MOTION_BLUR, DEFAULT_MAX_MOTION_BLUR, DEFAULT_SCROLLING_ONE_BY_ONE, DEFAULT_MOTION_BLUR_ENABLED, DEFAULT_SNAPPING_DISTANCE,
   DEFAULT_ALIGNMENT, DEFAULT_SPREADING_MODE, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SNAP_SCROLLTO_LEFT, DEFAULT_SNAP_SCROLLTO_TOP,
-  DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH, DEFAULT_SCROLLABLE,
+  DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH,
 } from './const';
 import {
   IScrollEvent, IAnimationParams, ISize, IScrollingSettings, IScrollOptions,
 } from './interfaces';
 import {
-  Alignment, ArithmeticExpression, Id, SnappingDistance, Direction, SnapToItemAlign, TextDirection,
+  Alignment, Id, SnappingDistance, Direction, SnapToItemAlign, TextDirection,
   SpreadingMode,
 } from './types';
 import {
-  Alignments, Directions, SpreadingModes, TextDirections,
+  Alignments, Directions, SpreadingModes,
 } from './enums';
 import { ScrollEvent, toggleClassName } from './utils';
 import { isDirection } from './utils/is-direction';
@@ -34,23 +32,23 @@ import {
 import { objectAsReadonly } from './utils/object';
 import { NgScrollerComponent } from './components/ng-scroller/ng-scroller.component';
 import { IScrollToParams } from './components/ng-scroll-view';
-import { isPercentageValue } from './utils/is-persentage-value';
 import { parseArithmeticExpression } from './utils/parse-arithmetic-expression';
 import { isSpreadingMode } from './utils/is-spreading-mode';
 import { SCROLL_VIEW_SERVICE } from './components/ng-scroll-view/const';
+import { DisposableComponent } from './utils/disposable-component';
 
 /**
  * Virtual list component.
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/16.x/projects/ng-virtual-scroll-view/src/lib/ng-virtual-scroll-view.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
 @Component({
   selector: 'ng-virtual-scroll-view',
   templateUrl: './ng-virtual-scroll-view.component.html',
-  styleUrl: './ng-virtual-scroll-view.component.scss',
+  styleUrls: ['./ng-virtual-scroll-view.component.scss'],
   host: {
     'style': 'position: relative;'
   },
@@ -61,7 +59,7 @@ import { SCROLL_VIEW_SERVICE } from './components/ng-scroll-view/const';
     { provide: SCROLL_VIEW_SERVICE, useClass: NgVirtualScrollViewService },
   ],
 })
-export class NgVirtualScrollViewComponent implements OnDestroy {
+export class NgVirtualScrollViewComponent extends DisposableComponent implements OnDestroy {
   private static __nextId: number = 0;
 
   private _id: number = NgVirtualScrollViewComponent.__nextId;
@@ -73,49 +71,59 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
   private _service = inject(SCROLL_VIEW_SERVICE);
 
-  private _scrollerComponent = viewChild<NgScrollerComponent>('scroller');
+  @ViewChild('scroller', { read: NgScrollerComponent })
+  private _scrollerComponent: NgScrollerComponent | undefined;
 
-  private _scroller: Signal<ElementRef<HTMLDivElement> | undefined>;
+  private _$scroller = new BehaviorSubject<ElementRef<HTMLDivElement> | undefined>(undefined);
+  protected readonly $scroller = this._$scroller.asObservable();
 
   /**
    * Fires when the list has been scrolled.
    */
-  onScroll = output<IScrollEvent>();
+  @Output()
+  onScroll = new EventEmitter<IScrollEvent>();
 
   /**
    * Fires when the list has completed scrolling.
    */
-  onScrollEnd = output<IScrollEvent>();
+  @Output()
+  onScrollEnd = new EventEmitter<IScrollEvent>();
 
   /**
    * Fires when the viewport size is changed.
    */
-  onViewportChange = output<ISize>();
+  @Output()
+  onViewportChange = new EventEmitter<ISize>();
 
   /**
    * Emit the component ID when an element crosses the alignment line specified by the snapToItemAlign property.
    */
-  onSnapItem = output<Id>();
+  @Output()
+  onSnapItem = new EventEmitter<Id>();
 
   /**
    * Fires when the scroll reaches the left.
    */
-  onScrollReachLeft = output<void>();
+  @Output()
+  onScrollReachLeft = new EventEmitter<void>();
 
   /**
    * Fires when the scroll reaches the right.
    */
-  onScrollReachRight = output<void>();
+  @Output()
+  onScrollReachRight = new EventEmitter<void>();
 
   /**
    * Fires when the scroll reaches the top.
    */
-  onScrollReachTop = output<void>();
+  @Output()
+  onScrollReachTop = new EventEmitter<void>();
 
   /**
    * Fires when the scroll reaches the bottom.
    */
-  onScrollReachBottom = output<void>();
+  @Output()
+  onScrollReachBottom = new EventEmitter<void>();
 
   private _$show = new BehaviorSubject<boolean>(false);
   readonly $show = this._$show.asObservable();
@@ -123,174 +131,274 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   private _$initialized = new BehaviorSubject<boolean>(false);
   readonly $initialized = this._$initialized.asObservable();
 
-  private _scrollbarThickness = {
-    transform: (v: number) => {
-      const valid = validateInt(v);
+  private _$scrollbarThickness = new BehaviorSubject<number>(DEFAULT_SCROLLBAR_THICKNESS);
+  protected readonly $scrollbarThickness = this._$scrollbarThickness.asObservable();
 
-      if (!valid) {
-        console.error('The "scrollbarThickness" parameter must be of type `number`.');
-        return DEFAULT_SCROLLBAR_THICKNESS;
-      }
-      return v;
-    },
-  } as any;
+  private _scrollbarThicknessTransform = (v: number) => {
+    const valid = validateInt(v, true);
+
+    if (!valid) {
+      console.error('The "scrollbarThickness" parameter must be of type `number`.');
+      return DEFAULT_SCROLLBAR_THICKNESS;
+    }
+    return v;
+  };
 
   /**
    * Scrollbar thickness.
    */
-  scrollbarThickness = input<number>(DEFAULT_SCROLLBAR_THICKNESS, { ...this._scrollbarThickness });
+  @Input()
+  set scrollbarThickness(v: number) {
+    if (this._$scrollbarThickness.getValue() === v) {
+      return;
+    }
 
-  private _scrollbarMinSize = {
-    transform: (v: number) => {
-      const valid = validateInt(v);
+    const transformedValue = this._scrollbarThicknessTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollbarMinSize" parameter must be of type `number`.');
-        return DEFAULT_SCROLLBAR_MIN_SIZE;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollbarThickness.next(transformedValue);
+  };
+  get scrollbarThickness() { return this._$scrollbarThickness.getValue(); }
+
+  private _$scrollbarMinSize = new BehaviorSubject<number>(DEFAULT_SCROLLBAR_MIN_SIZE);
+  protected readonly $scrollbarMinSize = this._$scrollbarMinSize.asObservable();
+
+  private _scrollbarMinSizeTransform = (v: number) => {
+    const valid = validateInt(v);
+
+    if (!valid) {
+      console.error('The "scrollbarMinSize" parameter must be of type `number`.');
+      return DEFAULT_SCROLLBAR_MIN_SIZE;
+    }
+    return v;
+  };
 
   /**
    * Minimum scrollbar size.
    */
-  scrollbarMinSize = input<number>(DEFAULT_SCROLLBAR_MIN_SIZE, { ...this._scrollbarMinSize });
+  @Input()
+  set scrollbarMinSize(v: number) {
+    if (this._$scrollbarMinSize.getValue() === v) {
+      return;
+    }
 
-  private _scrollbarThumbRenderer = {
-    transform: (v: TemplateRef<any> | null) => {
-      const valid = validateObject(v, true, true);
+    const transformedValue = this._scrollbarMinSizeTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollbarThumbRenderer" parameter must be of type `object`.');
-        return null;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollbarMinSize.next(transformedValue);
+  };
+  get scrollbarMinSize() { return this._$scrollbarMinSize.getValue() as number; }
+
+  private _$scrollbarThumbRenderer = new BehaviorSubject<TemplateRef<any> | null>(null);
+  protected readonly $scrollbarThumbRenderer = this._$scrollbarThumbRenderer.asObservable();
+
+  private _scrollbarThumbRendererTransform = (v: TemplateRef<any> | null) => {
+    const valid = validateObject(v, true, true);
+
+    if (!valid) {
+      console.error('The "scrollbarThumbRenderer" parameter must be of type `object`.');
+      return null;
+    }
+    return v;
+  };
 
   /**
    * Scrollbar customization template.
    */
-  scrollbarThumbRenderer = input<TemplateRef<any> | null>(null, { ...this._scrollbarThumbRenderer });
+  @Input()
+  set scrollbarThumbRenderer(v: TemplateRef<any> | null) {
+    if (this._$scrollbarThumbRenderer.getValue() === v) {
+      return;
+    }
 
-  private _scrollbarThumbParams = {
-    transform: (v: { [propName: string]: any } | null) => {
-      const valid = validateObject(v, true, true);
+    const transformedValue = this._scrollbarThumbRendererTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollbarThumbParams" parameter must be of type `object`.');
-        return null;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollbarThumbRenderer.next(transformedValue);
+  };
+  get scrollbarThumbRenderer() { return this._$scrollbarThumbRenderer.getValue(); }
+
+  private _$scrollbarThumbParams = new BehaviorSubject<{ [propName: string]: any } | null>({});
+  protected readonly $scrollbarThumbParams = this._$scrollbarThumbParams.asObservable();
+
+  private _scrollbarThumbParamsTransform = (v: { [propName: string]: any } | null) => {
+    const valid = validateObject(v, true, true);
+
+    if (!valid) {
+      console.error('The "scrollbarThumbParams" parameter must be of type `object`.');
+      return null;
+    }
+    return v;
+  };
 
   /**
    * Additional options for the scrollbar.
    */
-  scrollbarThumbParams = input<{ [propName: string]: any } | null>({}, { ...this._scrollbarThumbParams });
+  @Input()
+  set scrollbarThumbParams(v: { [propName: string]: any } | null) {
+    if (this._$scrollbarThumbParams.getValue() === v) {
+      return;
+    }
 
-  private _clickDistance = {
-    transform: (v: number) => {
-      const valid = validateInt(v);
+    const transformedValue = this._scrollbarThumbParamsTransform(v);
 
-      if (!valid) {
-        console.error('The "clickDistance" parameter must be of type `number`.');
-        return DEFAULT_CLICK_DISTANCE;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollbarThumbParams.next(transformedValue);
+  };
+  get scrollbarThumbParams() { return this._$scrollbarThumbParams.getValue(); }
+
+  private _$clickDistance = new BehaviorSubject<number>(DEFAULT_CLICK_DISTANCE);
+  protected readonly $clickDistance = this._$clickDistance.asObservable();
+
+  private _clickDistanceTransform = (v: number) => {
+    const valid = validateInt(v);
+
+    if (!valid) {
+      console.error('The "clickDistance" parameter must be of type `number`.');
+      return DEFAULT_CLICK_DISTANCE;
+    }
+    return v;
+  };
 
   /**
    * The maximum scroll distance at which a click event is triggered.
    */
-  clickDistance = input<number>(DEFAULT_CLICK_DISTANCE, { ...this._clickDistance });
+  @Input()
+  set clickDistance(v: number) {
+    if (this._$clickDistance.getValue() === v) {
+      return;
+    }
 
-  private _scrollLeftOffsetOptions = {
-    transform: (v: number) => {
-      const valid = validateFloat(v, true) || isPercentageValue(v);
+    const transformedValue = this._clickDistanceTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollLeftOffset" parameter must be one of type `number` or `string`.');
-        return 0;
-      }
-      return v;
-    },
-  } as any;
+    this._$clickDistance.next(transformedValue);
+  };
+  get clickDistance() { return this._$clickDistance.getValue() as number; }
+
+  private _$scrollLeftOffset = new BehaviorSubject<number>(0);
+  protected readonly $scrollLeftOffset = this._$scrollLeftOffset.asObservable();
+
+  private _scrollLeftOffsetTransform = (v: number) => {
+    const valid = validateInt(v);
+
+    if (!valid) {
+      console.error('The "scrollLeftOffset" parameter must be one of type `number` or `string`.');
+      return 0;
+    }
+    return v;
+  };
 
   /**
    * Sets the scroll left offset value. Can be specified in absolute or percentage values.
    * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
    */
-  scrollLeftOffset = input<ArithmeticExpression>(0, { ...this._scrollLeftOffsetOptions });
+  @Input()
+  set scrollLeftOffset(v: number) {
+    if (this._$scrollLeftOffset.getValue() === v) {
+      return;
+    }
 
-  private _scrollTopOffsetOptions = {
-    transform: (v: number) => {
-      const valid = validateFloat(v, true) || isPercentageValue(v);
+    const transformedValue = this._scrollLeftOffsetTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollTopOffset" parameter must be one of type `number` or `string`.');
-        return 0;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollLeftOffset.next(transformedValue);
+  };
+  get scrollLeftOffset() { return this._$scrollLeftOffset.getValue() as number; }
+
+  private _$scrollTopOffset = new BehaviorSubject<number>(0);
+  protected readonly $scrollTopOffset = this._$scrollTopOffset.asObservable();
+
+  private _scrollTopOffsetTransform = (v: number) => {
+    const valid = validateInt(v);
+
+    if (!valid) {
+      console.error('The "scrollTopOffset" parameter must be one of type `number` or `string`.');
+      return 0;
+    }
+    return v;
+  };
 
   /**
    * Sets the scroll top offset value. Can be specified in absolute or percentage values.
    * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
    */
-  scrollTopOffset = input<ArithmeticExpression>(0, { ...this._scrollTopOffsetOptions });
+  @Input()
+  set scrollTopOffset(v: number) {
+    if (this._$scrollTopOffset.getValue() === v) {
+      return;
+    }
 
-  private _scrollRightOffsetOptions = {
-    transform: (v: number) => {
-      const valid = validateFloat(v, true) || isPercentageValue(v);
+    const transformedValue = this._scrollTopOffsetTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollRightOffset" parameter must be one of type `number` or `string`.');
-        return 0;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollTopOffset.next(transformedValue);
+  };
+  get scrollTopOffset() { return this._$scrollTopOffset.getValue() as number; }
+
+  private _$scrollRightOffset = new BehaviorSubject<number>(0);
+  protected readonly $scrollRightOffset = this._$scrollRightOffset.asObservable();
+
+  private _scrollRightOffsetTransform = (v: number) => {
+    const valid = validateInt(v);
+
+    if (!valid) {
+      console.error('The "scrollRightOffset" parameter must be one of type `number` or `string`.');
+      return 0;
+    }
+    return v;
+  };
 
   /**
    * Sets the scroll right offset value. Can be specified in absolute or percentage values.
    * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
    */
-  scrollRightOffset = input<ArithmeticExpression>(0, { ...this._scrollRightOffsetOptions });
+  @Input()
+  set scrollRightOffset(v: number) {
+    if (this._$scrollRightOffset.getValue() === v) {
+      return;
+    }
 
-  private _scrollBottomOffsetOptions = {
-    transform: (v: number) => {
-      const valid = validateFloat(v, true) || isPercentageValue(v);
+    const transformedValue = this._scrollRightOffsetTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollBottomOffset" parameter must be one of type `number` or `string`.');
-        return 0;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollRightOffset.next(transformedValue);
+  };
+  get scrollRightOffset() { return this._$scrollRightOffset.getValue() as number; }
+
+  private _$scrollBottomOffset = new BehaviorSubject<number>(0);
+  protected readonly $scrollBottomOffset = this._$scrollBottomOffset.asObservable();
+
+  private _scrollBottomOffsetTransform = (v: number) => {
+    const valid = validateInt(v);
+
+    if (!valid) {
+      console.error('The "scrollBottomOffset" parameter must be one of type `number` or `string`.');
+      return 0;
+    }
+    return v;
+  };
 
   /**
    * Sets the scroll bottom offset value. Can be specified in absolute or percentage values.
    * Supports arithmetic expressions of addition `50% + 25` or subtraction `50% - 25`. Default value is "0".
    */
-  scrollBottomOffset = input<ArithmeticExpression>(0, { ...this._scrollBottomOffsetOptions });
+  @Input()
+  set scrollBottomOffset(v: number) {
+    if (this._$scrollBottomOffset.getValue() === v) {
+      return;
+    }
 
-  private _snapScrollToLeftOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._scrollBottomOffsetTransform(v);
 
-      if (!valid) {
-        console.error('The "snapScrollToLeft" parameter must be of type `boolean`.');
-        return DEFAULT_SNAP_SCROLLTO_LEFT;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollBottomOffset.next(transformedValue);
+  };
+  get scrollBottomOffset() { return this._$scrollBottomOffset.getValue() as number; }
+
+  private _$snapScrollToLeft = new BehaviorSubject<boolean>(DEFAULT_SNAP_SCROLLTO_LEFT);
+  protected readonly $snapScrollToLeft = this._$snapScrollToLeft.asObservable();
+
+  private _snapScrollToLeftTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "snapScrollToLeft" parameter must be of type `boolean`.');
+      return DEFAULT_SNAP_SCROLLTO_LEFT;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the scrollbar is snapped to the left of the scroller. The default value is "true".
@@ -301,19 +409,30 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If both snapScrollToLeft and snapScrollToRight are disabled, the scroller will never snap to the left or right.
    * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToRight` property is automatically disabled because the list has no beginning or end.
    */
-  snapScrollToLeft = input<boolean>(DEFAULT_SNAP_SCROLLTO_LEFT, { ...this._snapScrollToLeftOptions });
+  @Input()
+  set snapScrollToLeft(v: boolean) {
+    if (this._$snapScrollToLeft.getValue() === v) {
+      return;
+    }
 
-  private _snapScrollToTopOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._snapScrollToLeftTransform(v);
 
-      if (!valid) {
-        console.error('The "snapScrollToTop" parameter must be of type `boolean`.');
-        return DEFAULT_SNAP_SCROLLTO_TOP;
-      }
-      return v;
-    },
-  } as any;
+    this._$snapScrollToLeft.next(transformedValue);
+  };
+  get snapScrollToLeft() { return this._$snapScrollToLeft.getValue(); }
+
+  private _$snapScrollToTop = new BehaviorSubject<boolean>(DEFAULT_SNAP_SCROLLTO_TOP);
+  protected readonly $snapScrollToTop = this._$snapScrollToTop.asObservable();
+
+  private _snapScrollToTopTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "snapScrollToTop" parameter must be of type `boolean`.');
+      return DEFAULT_SNAP_SCROLLTO_TOP;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the scrollbar is snapped to the top of the scroller. The default value is "true".
@@ -324,19 +443,30 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If both snapScrollToTop and snapScrollToBottom are disabled, the scroller will never snap to the top or bottom.
    * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
    */
-  snapScrollToTop = input<boolean>(DEFAULT_SNAP_SCROLLTO_TOP, { ...this._snapScrollToTopOptions });
+  @Input()
+  set snapScrollToTop(v: boolean) {
+    if (this._$snapScrollToTop.getValue() === v) {
+      return;
+    }
 
-  private _snapScrollToRightOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._snapScrollToTopTransform(v);
 
-      if (!valid) {
-        console.error('The "snapScrollToRight" parameter must be of type `boolean`.');
-        return DEFAULT_SNAP_SCROLLTO_RIGHT;
-      }
-      return v;
-    },
-  } as any;
+    this._$snapScrollToTop.next(transformedValue);
+  };
+  get snapScrollToTop() { return this._$snapScrollToTop.getValue(); }
+
+  private _$snapScrollToRight = new BehaviorSubject<boolean>(DEFAULT_SNAP_SCROLLTO_RIGHT);
+  protected readonly $snapScrollToRight = this._$snapScrollToRight.asObservable();
+
+  private _snapScrollToRightTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "snapScrollToRight" parameter must be of type `boolean`.');
+      return DEFAULT_SNAP_SCROLLTO_RIGHT;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the scrollbar is snapped to the right of the scroller. The default value is "true".
@@ -347,19 +477,30 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If both snapScrollToLeft and snapScrollToRight are disabled, the scroller will never snap to the left or right.
    * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToRight` property is automatically disabled because the list has no beginning or end.
    */
-  snapScrollToRight = input<boolean>(DEFAULT_SNAP_SCROLLTO_RIGHT, { ...this._snapScrollToRightOptions });
+  @Input()
+  set snapScrollToRight(v: boolean) {
+    if (this._$snapScrollToRight.getValue() === v) {
+      return;
+    }
 
-  private _snapScrollToBottomOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._snapScrollToRightTransform(v);
 
-      if (!valid) {
-        console.error('The "snapScrollToBottom" parameter must be of type `boolean`.');
-        return DEFAULT_SNAP_SCROLLTO_BOTTOM;
-      }
-      return v;
-    },
-  } as any;
+    this._$snapScrollToRight.next(transformedValue);
+  };
+  get snapScrollToRight() { return this._$snapScrollToRight.getValue(); }
+
+  private _$snapScrollToBottom = new BehaviorSubject<boolean>(DEFAULT_SNAP_SCROLLTO_BOTTOM);
+  protected readonly $snapScrollToBottom = this._$snapScrollToBottom.asObservable();
+
+  private _snapScrollToBottomTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "snapScrollToBottom" parameter must be of type `boolean`.');
+      return DEFAULT_SNAP_SCROLLTO_BOTTOM;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the scrollbar is snapped to the bottom of the scroller. The default value is "true".
@@ -370,143 +511,210 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If both snapScrollToTop and snapScrollToBottom are disabled, the scroller will never snap to the top or bottom.
    * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
    */
-  snapScrollToBottom = input<boolean>(DEFAULT_SNAP_SCROLLTO_BOTTOM, { ...this._snapScrollToBottomOptions });
+  @Input()
+  set snapScrollToBottom(v: boolean) {
+    if (this._$snapScrollToBottom.getValue() === v) {
+      return;
+    }
 
-  private _scrollableOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._snapScrollToBottomTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollable" parameter must be of type `boolean`.');
-        return DEFAULT_SCROLLBAR_ENABLED;
-      }
-      return v;
-    },
-  } as any;
+    this._$snapScrollToBottom.next(transformedValue);
+  };
+  get snapScrollToBottom() { return this._$snapScrollToBottom.getValue(); }
 
+  private _$scrollable = new BehaviorSubject<boolean>(DEFAULT_SCROLLBAR_ENABLED);
+  protected readonly $scrollable = this._$scrollable.asObservable();
+
+  private _scrollableTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "scrollable" parameter must be of type `boolean`.');
+      return DEFAULT_SCROLLBAR_ENABLED;
+    }
+    return v;
+  };
+
+  /**
   /**
    * Determines whether scrolling is enabled or disabled. The default value is "true".
    */
-  scrollable = input<boolean>(DEFAULT_SCROLLABLE, { ...this._scrollableOptions });
+  @Input()
+  set scrollable(v: boolean) {
+    if (this._$scrollable.getValue() === v) {
+      return;
+    }
 
-  private _scrollbarEnabledOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._scrollableTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollbarEnabled" parameter must be of type `boolean`.');
-        return DEFAULT_SCROLLBAR_ENABLED;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollable.next(transformedValue);
+  };
+  get scrollable() { return this._$scrollable.getValue(); }
+
+  private _$scrollbarEnabled = new BehaviorSubject<boolean>(DEFAULT_SCROLLBAR_ENABLED);
+  protected readonly $scrollbarEnabled = this._$scrollbarEnabled.asObservable();
+
+  private _scrollbarEnabledTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "scrollbarEnabled" parameter must be of type `boolean`.');
+      return DEFAULT_SCROLLBAR_ENABLED;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the scrollbar is shown or not. The default value is "true".
    */
-  scrollbarEnabled = input<boolean>(DEFAULT_SCROLLBAR_ENABLED, { ...this._scrollbarEnabledOptions });
+  @Input()
+  set scrollbarEnabled(v: boolean) {
+    if (this._$scrollbarEnabled.getValue() === v) {
+      return;
+    }
 
-  private _scrollbarInteractiveOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._scrollbarEnabledTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollbarInteractive" parameter must be of type `boolean`.');
-        return DEFAULT_SCROLLBAR_INTERACTIVE;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollbarEnabled.next(transformedValue);
+  };
+  get scrollbarEnabled() { return this._$scrollbarEnabled.getValue(); }
+
+  private _$scrollbarInteractive = new BehaviorSubject<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE);
+  protected readonly $scrollbarInteractive = this._$scrollbarInteractive.asObservable();
+
+  private _scrollbarInteractiveTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "scrollbarInteractive" parameter must be of type `boolean`.');
+      return DEFAULT_SCROLLBAR_INTERACTIVE;
+    }
+    return v;
+  };
 
   /**
    * Determines whether scrolling using the scrollbar will be possible. The default value is "true".
    */
-  scrollbarInteractive = input<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE, { ...this._scrollbarInteractiveOptions });
+  @Input()
+  set scrollbarInteractive(v: boolean) {
+    if (this._$scrollbarInteractive.getValue() === v) {
+      return;
+    }
 
-  private _overlappingScrollbarOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._scrollbarInteractiveTransform(v);
 
-      if (!valid) {
-        console.error('The "overlappingScrollbar" parameter must be of type `boolean`.');
-        return DEFAULT_OVERLAPPING_SCROLLBAR;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollbarInteractive.next(transformedValue);
+  };
+  get scrollbarInteractive() { return this._$scrollbarInteractive.getValue(); }
+
+  private _$overlappingScrollbar = new BehaviorSubject<boolean>(DEFAULT_OVERLAPPING_SCROLLBAR);
+  protected readonly $overlappingScrollbar = this._$overlappingScrollbar.asObservable();
+
+  private _overlappingScrollbarTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "overlappingScrollbar" parameter must be of type `boolean`.');
+      return DEFAULT_OVERLAPPING_SCROLLBAR;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the scroll bar will overlap the list. The default value is "false".
    */
-  overlappingScrollbar = input<boolean>(DEFAULT_OVERLAPPING_SCROLLBAR, { ...this._overlappingScrollbarOptions });
+  @Input()
+  set overlappingScrollbar(v: boolean) {
+    if (this._$overlappingScrollbar.getValue() === v) {
+      return;
+    }
 
-  private _scrollBehaviorOptions = {
-    transform: (v: ScrollBehavior) => {
-      const valid = validateString(v, true, true);
+    const transformedValue = this._overlappingScrollbarTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollBehavior" parameter must be of type `boolean`.');
-        return DEFAULT_SCROLL_BEHAVIOR;
-      }
-      return v;
-    },
-  } as any;
+    this._$overlappingScrollbar.next(transformedValue);
+  };
+  get overlappingScrollbar() { return this._$overlappingScrollbar.getValue(); }
+
+  private _$scrollBehavior = new BehaviorSubject<ScrollBehavior>(DEFAULT_SCROLL_BEHAVIOR);
+  protected readonly $scrollBehavior = this._$scrollBehavior.asObservable();
+
+  private _scrollBehaviorTransform = (v: ScrollBehavior) => {
+    const valid = validateString(v, true, true);
+
+    if (!valid) {
+      console.error('The "scrollBehavior" parameter must be of type `boolean`.');
+      return DEFAULT_SCROLL_BEHAVIOR;
+    }
+    return v;
+  };
 
   /**
    * Defines the scrolling behavior for any element on the page. The default value is "smooth".
    */
-  scrollBehavior = input<ScrollBehavior>(DEFAULT_SCROLL_BEHAVIOR, { ...this._scrollBehaviorOptions });
+  @Input()
+  set scrollBehavior(v: ScrollBehavior) {
+    if (this._$scrollBehavior.getValue() === v) {
+      return;
+    }
 
-  private _scrollingSettingsOptions = {
-    transform: (v: IScrollingSettings): IScrollingSettings | null => {
-      let valid = validateObject(v, true, true);
-      if (valid && !!v) {
-        const { frictionalForce, mass, maxDistance, maxDuration, speedScale, optimization } = v;
-        valid = validateFloat(frictionalForce, true);
-        if (!valid) {
-          console.error('The "frictionalForce" parameter must be of type `number` or `undefined`.');
-          return DEFAULT_SCROLLING_SETTINGS;
-        }
-        valid = validateFloat(mass, true);
-        if (!valid) {
-          console.error('The "mass" parameter must be of type `number` or `undefined`.');
-          return DEFAULT_SCROLLING_SETTINGS;
-        }
-        valid = validateFloat(maxDistance, true);
-        if (!valid) {
-          console.error('The "maxDistance" parameter must be of type `number` or `undefined`.');
-          return DEFAULT_SCROLLING_SETTINGS;
-        }
-        valid = validateFloat(maxDuration, true);
-        if (!valid) {
-          console.error('The "maxDuration" parameter must be of type `number` or `undefined`.');
-          return DEFAULT_SCROLLING_SETTINGS;
-        }
-        valid = validateFloat(speedScale, true);
-        if (!valid) {
-          console.error('The "speedScale" parameter must be of type `number` or `undefined`.');
-          return DEFAULT_SCROLLING_SETTINGS;
-        }
-        valid = validateBoolean(optimization, true);
-        if (!valid) {
-          console.error('The "optimization" parameter must be of type `boolean` or `undefined`.');
-          return DEFAULT_SCROLLING_SETTINGS;
-        }
-      }
+    const transformedValue = this._scrollBehaviorTransform(v);
+
+    this._$scrollBehavior.next(transformedValue);
+  };
+  get scrollBehavior() { return this._$scrollBehavior.getValue(); }
+
+  private _$scrollingSettings = new BehaviorSubject<IScrollingSettings>(DEFAULT_SCROLLING_SETTINGS);
+  protected readonly $scrollingSettings = this._$scrollingSettings.asObservable();
+
+  private _scrollingSettingsTransform = (v: IScrollingSettings): IScrollingSettings => {
+    let valid = validateObject(v, true, true);
+    if (valid && !!v) {
+      const { frictionalForce, mass, maxDistance, maxDuration, speedScale, optimization } = v;
+      valid = validateFloat(frictionalForce, true);
       if (!valid) {
-        console.error('The "scrollingSettings" parameter must be of type `object` or null.');
+        console.error('The "frictionalForce" parameter must be of type `number` or `undefined`.');
         return DEFAULT_SCROLLING_SETTINGS;
       }
-      return {
-        frictionalForce: v.frictionalForce !== undefined && v.frictionalForce > 0 ? v.frictionalForce : DEFAULT_SCROLLING_SETTINGS.frictionalForce,
-        mass: v.mass !== undefined && v.mass > 0 ? v.mass : DEFAULT_SCROLLING_SETTINGS.mass,
-        maxDistance: v.maxDistance !== undefined && v.maxDistance > 0 ? v.maxDistance : DEFAULT_SCROLLING_SETTINGS.maxDistance,
-        maxDuration: v.maxDuration !== undefined && v.maxDuration > 0 ? v.maxDuration : DEFAULT_SCROLLING_SETTINGS.maxDuration,
-        speedScale: v.speedScale !== undefined && v.speedScale > 0 ? v.speedScale : DEFAULT_SCROLLING_SETTINGS.speedScale,
-        optimization: v.optimization ?? DEFAULT_SCROLLING_SETTINGS.optimization,
-      };
-    },
-  } as any;
+      valid = validateFloat(mass, true);
+      if (!valid) {
+        console.error('The "mass" parameter must be of type `number` or `undefined`.');
+        return DEFAULT_SCROLLING_SETTINGS;
+      }
+      valid = validateFloat(maxDistance, true);
+      if (!valid) {
+        console.error('The "maxDistance" parameter must be of type `number` or `undefined`.');
+        return DEFAULT_SCROLLING_SETTINGS;
+      }
+      valid = validateFloat(maxDuration, true);
+      if (!valid) {
+        console.error('The "maxDuration" parameter must be of type `number` or `undefined`.');
+        return DEFAULT_SCROLLING_SETTINGS;
+      }
+      valid = validateFloat(speedScale, true);
+      if (!valid) {
+        console.error('The "speedScale" parameter must be of type `number` or `undefined`.');
+        return DEFAULT_SCROLLING_SETTINGS;
+      }
+      valid = validateBoolean(optimization, true);
+      if (!valid) {
+        console.error('The "optimization" parameter must be of type `boolean` or `undefined`.');
+        return DEFAULT_SCROLLING_SETTINGS;
+      }
+    }
+    if (!valid) {
+      console.error('The "scrollingSettings" parameter must be of type `object` or null.');
+      return DEFAULT_SCROLLING_SETTINGS;
+    }
+    return {
+      frictionalForce: v.frictionalForce !== undefined && v.frictionalForce > 0 ? v.frictionalForce : DEFAULT_SCROLLING_SETTINGS.frictionalForce,
+      mass: v.mass !== undefined && v.mass > 0 ? v.mass : DEFAULT_SCROLLING_SETTINGS.mass,
+      maxDistance: v.maxDistance !== undefined && v.maxDistance > 0 ? v.maxDistance : DEFAULT_SCROLLING_SETTINGS.maxDistance,
+      maxDuration: v.maxDuration !== undefined && v.maxDuration > 0 ? v.maxDuration : DEFAULT_SCROLLING_SETTINGS.maxDuration,
+      speedScale: v.speedScale !== undefined && v.speedScale > 0 ? v.speedScale : DEFAULT_SCROLLING_SETTINGS.speedScale,
+      optimization: v.optimization ?? DEFAULT_SCROLLING_SETTINGS.optimization,
+    };
+  };
 
   /**
    * Scrolling settings.
@@ -517,106 +725,172 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * - speedScale - Speed scale. Default value is 10.
    * - optimization - Enables scrolling performance optimization. Default value is `true`.
    */
-  scrollingSettings = input<IScrollingSettings>(DEFAULT_SCROLLING_SETTINGS, { ...this._scrollingSettingsOptions });
+  @Input()
+  set scrollingSettings(v: IScrollingSettings) {
+    if (this._$scrollingSettings.getValue() === v) {
+      return;
+    }
 
-  private _snapToItemOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v);
+    const transformedValue = this._scrollingSettingsTransform(v);
 
-      if (!valid) {
-        console.error('The "snapToItem" parameter must be of type `boolean`.');
-        return DEFAULT_SNAP_TO_ITEM;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollingSettings.next(transformedValue);
+  };
+  get scrollingSettings() { return this._$scrollingSettings.getValue(); }
+
+  private _$snapToItem = new BehaviorSubject<boolean>(DEFAULT_SNAP_TO_ITEM);
+  protected readonly $snapToItem = this._$snapToItem.asObservable();
+
+  private _snapToItemTransform = (v: boolean) => {
+    const valid = validateBoolean(v);
+
+    if (!valid) {
+      console.error('The "snapToItem" parameter must be of type `boolean`.');
+      return DEFAULT_SNAP_TO_ITEM;
+    }
+    return v;
+  };
 
   /**
    * Snap to an item. The default value is `false`.
    */
-  snapToItem = input<boolean>(DEFAULT_SNAP_TO_ITEM, { ...this._snapToItemOptions });
+  @Input()
+  set snapToItem(v: boolean) {
+    if (this._$snapToItem.getValue() === v) {
+      return;
+    }
 
-  private _snapToItemAlignOptions = {
-    transform: (v: SnapToItemAlign) => {
-      const valid = validateString(v) && (v === 'start' || v === 'center' || v === 'end');
+    const transformedValue = this._snapToItemTransform(v);
 
-      if (!valid) {
-        console.error('The "snapToItemAlign" parameter must be one of `start`, `center` or `end`.');
-        return DEFAULT_SNAP_TO_ITEM_ALIGN;
-      }
-      return v;
-    },
-  } as any;
+    this._$snapToItem.next(transformedValue);
+  };
+  get snapToItem() { return this._$snapToItem.getValue(); }
+
+  private _$snapToItemAlign = new BehaviorSubject<SnapToItemAlign>(DEFAULT_SNAP_TO_ITEM_ALIGN);
+  protected readonly $snapToItemAlign = this._$snapToItemAlign.asObservable();
+
+  private _snapToItemAlignTransform = (v: SnapToItemAlign) => {
+    const valid = validateString(v) && (v === 'start' || v === 'center' || v === 'end');
+
+    if (!valid) {
+      console.error('The "snapToItemAlign" parameter must be one of `start`, `center` or `end`.');
+      return DEFAULT_SNAP_TO_ITEM_ALIGN;
+    }
+    return v;
+  };
 
   /**
    * Alignment for snapToItem. Available values ​​are `start`, `center`, and `end`. The default value is `center`.
    */
-  snapToItemAlign = input<SnapToItemAlign>(DEFAULT_SNAP_TO_ITEM_ALIGN, { ...this._snapToItemAlignOptions });
+  @Input()
+  set snapToItemAlign(v: SnapToItemAlign) {
+    if (this._$snapToItemAlign.getValue() === v) {
+      return;
+    }
 
-  private _snappingDistanceOptions = {
-    transform: (v: SnappingDistance | any) => {
-      const valid = validateString(v) || validateFloat(v);
+    const transformedValue = this._snapToItemAlignTransform(v);
 
-      if (!valid) {
-        console.error('The "snappingDistance" parameter must be of type `number` or `string`.');
-        return DEFAULT_SNAPPING_DISTANCE;
-      }
-      return v;
-    },
-  } as any;
+    this._$snapToItemAlign.next(transformedValue);
+  };
+  get snapToItemAlign() { return this._$snapToItemAlign.getValue(); }
+
+  private _$snappingDistance = new BehaviorSubject<SnappingDistance>(DEFAULT_SNAPPING_DISTANCE);
+  protected readonly $snappingDistance = this._$snappingDistance.asObservable();
+
+  private _snappingDistanceTransform = (v: SnappingDistance | any) => {
+    const valid = validateString(v) || validateFloat(v);
+
+    if (!valid) {
+      console.error('The "snappingDistance" parameter must be of type `number` or `string`.');
+      return DEFAULT_SNAPPING_DISTANCE;
+    }
+    return v;
+  };
 
   /**
    * Snapping activation distance. Can be specified as a percentage of the element size or in absolute values.
    * The default value is `25%`.
    */
-  snappingDistance = input<SnappingDistance>(DEFAULT_SNAPPING_DISTANCE, { ...this._snappingDistanceOptions });
+  @Input()
+  set snappingDistance(v: SnappingDistance) {
+    if (this._$snappingDistance.getValue() === v) {
+      return;
+    }
 
-  private _scrollingOneByOneOptions = {
-    transform: (v: any) => {
-      const valid = validateBoolean(v);
+    const transformedValue = this._snappingDistanceTransform(v);
 
-      if (!valid) {
-        console.error('The "scrollingOneByOne" parameter must be of type `boolean`.');
-        return DEFAULT_SCROLLING_ONE_BY_ONE;
-      }
-      return v;
-    },
-  } as any;
+    this._$snappingDistance.next(transformedValue);
+  };
+  get snappingDistance() { return this._$snappingDistance.getValue(); }
+
+  private _$scrollingOneByOne = new BehaviorSubject<boolean>(DEFAULT_SCROLLING_ONE_BY_ONE);
+  protected readonly $scrollingOneByOne = this._$scrollingOneByOne.asObservable();
+
+  private _scrollingOneByOneTransform = (v: any) => {
+    const valid = validateBoolean(v);
+
+    if (!valid) {
+      console.error('The "scrollingOneByOne" parameter must be of type `boolean`.');
+      return DEFAULT_SCROLLING_ONE_BY_ONE;
+    }
+    return v;
+  };
 
   /**
    * Specifies whether to scroll one item at a time if true and the scrollToItem property is set. The default value is `false`.
    */
-  scrollingOneByOne = input<boolean>(DEFAULT_SCROLLING_ONE_BY_ONE, { ...this._scrollingOneByOneOptions });
+  @Input()
+  set scrollingOneByOne(v: boolean) {
+    if (this._$scrollingOneByOne.getValue() === v) {
+      return;
+    }
 
-  private _alignmentOptions = {
-    transform: (v: Alignment) => {
-      const valid = validateString(v) && (v === 'none' || v === 'center');
+    const transformedValue = this._scrollingOneByOneTransform(v);
 
-      if (!valid) {
-        console.error('The "alignment" parameter must be one of `none` or `centert`.');
-        return DEFAULT_ALIGNMENT;
-      }
-      return v;
-    },
-  } as any;
+    this._$scrollingOneByOne.next(transformedValue);
+  };
+  get scrollingOneByOne() { return this._$scrollingOneByOne.getValue(); }
+
+  private _$alignment = new BehaviorSubject<Alignment>(DEFAULT_ALIGNMENT);
+  protected readonly $alignment = this._$alignment.asObservable();
+
+  private _alignmentTransform = (v: Alignment) => {
+    const valid = validateString(v) && (v === 'none' || v === 'center');
+
+    if (!valid) {
+      console.error('The "alignment" parameter must be one of `none` or `centert`.');
+      return DEFAULT_ALIGNMENT;
+    }
+    return v;
+  };
 
   /**
    * Determines the alignment of the list. Two modes are available: `none` and `center`. The `center` mode aligns the list items to the center of the viewport, ideal for use with the `itemTransform` property.
    * The `none` mode means no alignment. The default value is `none`.
    */
-  alignment = input<Alignment>(DEFAULT_ALIGNMENT, { ...this._alignmentOptions });
+  @Input()
+  set alignment(v: Alignment) {
+    if (this._$alignment.getValue() === v) {
+      return;
+    }
 
-  private _spreadingModeOptions = {
-    transform: (v: SpreadingMode) => {
-      const valid = validateString(v) && (v === 'normal' || v === 'infinity');
+    const transformedValue = this._alignmentTransform(v);
 
-      if (!valid) {
-        console.error('The "spreadingMode" parameter must be one of `normal` or `infinity`.');
-        return DEFAULT_SPREADING_MODE;
-      }
-      return v;
-    },
-  } as any;
+    this._$alignment.next(transformedValue);
+  };
+  get alignment() { return this._$alignment.getValue(); }
+
+  private _$spreadingMode = new BehaviorSubject<SpreadingMode>(DEFAULT_SPREADING_MODE);
+  protected readonly $spreadingMode = this._$spreadingMode.asObservable();
+
+  private _spreadingModeTransform = (v: SpreadingMode) => {
+    const valid = validateString(v) && (v === 'normal' || v === 'infinity');
+
+    if (!valid) {
+      console.error('The "spreadingMode" parameter must be one of `normal` or `infinity`.');
+      return DEFAULT_SPREADING_MODE;
+    }
+    return v;
+  };
 
   /**
    * The order of list elements. Available values ​​are `standard` and `infinity`.
@@ -625,210 +899,341 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * When set to `infinity`, the `alignment` property is forced to the value `Alignments.CENTER`, the `scrollbarEnabled` property is forced to the `false`
    * The default value is `standard`.
    */
-  spreadingMode = input<SpreadingMode>(DEFAULT_SPREADING_MODE, { ...this._spreadingModeOptions });
+  @Input()
+  set spreadingMode(v: SpreadingMode) {
+    if (this._$spreadingMode.getValue() === v) {
+      return;
+    }
 
-  private _motionBlurOptions = {
-    transform: (v: number) => {
-      const valid = validateFloat(v);
+    const transformedValue = this._spreadingModeTransform(v);
 
-      if (!valid) {
-        console.error('The "motionBlur" parameter must be of type `number`.');
-        return DEFAULT_MOTION_BLUR;
-      }
-      return v;
-    },
-  } as any;
+    this._$spreadingMode.next(transformedValue);
+  };
+  get spreadingMode() { return this._$spreadingMode.getValue(); }
+
+  private _$motionBlur = new BehaviorSubject<number>(DEFAULT_MOTION_BLUR);
+  protected readonly $motionBlur = this._$motionBlur.asObservable();
+
+  private _motionBlurTransform = (v: number) => {
+    const valid = validateFloat(v);
+
+    if (!valid) {
+      console.error('The "motionBlur" parameter must be of type `number`.');
+      return DEFAULT_MOTION_BLUR;
+    }
+    return v <= 0 ? DEFAULT_MOTION_BLUR : v;
+  };
 
   /**
    * Motion blur effect. The default value is `0.15`.
    */
-  motionBlur = input<number>(DEFAULT_MOTION_BLUR, { ...this._motionBlurOptions });
+  @Input()
+  set motionBlur(v: number) {
+    if (this._$motionBlur.getValue() === v) {
+      return;
+    }
 
-  private _maxMotionBlurOptions = {
-    transform: (v: number) => {
-      const valid = validateFloat(v);
+    const transformedValue = this._motionBlurTransform(v);
 
-      if (!valid) {
-        console.error('The "maxMotionBlur" parameter must be of type `number`.');
-        return DEFAULT_MAX_MOTION_BLUR;
-      }
-      return v <= 0 ? DEFAULT_MAX_MOTION_BLUR : v;
-    },
-  } as any;
+    this._$motionBlur.next(transformedValue);
+  };
+  get motionBlur() { return this._$motionBlur.getValue(); }
+
+  private _$maxMotionBlur = new BehaviorSubject<number>(DEFAULT_MAX_MOTION_BLUR);
+  protected readonly $maxMotionBlur = this._$maxMotionBlur.asObservable();
+
+  private _maxMotionBlurTransform = (v: number) => {
+    const valid = validateFloat(v);
+
+    if (!valid) {
+      console.error('The "maxMotionBlur" parameter must be of type `number`.');
+      return DEFAULT_MAX_MOTION_BLUR;
+    }
+    return v <= 0 ? DEFAULT_MAX_MOTION_BLUR : v;
+  };
 
   /**
    * Maximum motion blur effect. The default value is `0.5`.
    */
-  maxMotionBlur = input<number>(DEFAULT_MAX_MOTION_BLUR, { ...this._maxMotionBlurOptions });
+  @Input()
+  set maxMotionBlur(v: number) {
+    if (this._$maxMotionBlur.getValue() === v) {
+      return;
+    }
 
-  private _motionBlurEnabledOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v);
+    const transformedValue = this._maxMotionBlurTransform(v);
 
-      if (!valid) {
-        console.error('The "motionBlurEnabled" parameter must be of type `boolean`.');
-        return DEFAULT_MOTION_BLUR_ENABLED;
-      }
-      return v;
-    },
-  } as any;
+    this._$maxMotionBlur.next(transformedValue);
+  };
+  get maxMotionBlur() { return this._$maxMotionBlur.getValue(); }
+
+  private _$motionBlurEnabled = new BehaviorSubject<boolean>(DEFAULT_MOTION_BLUR_ENABLED);
+  protected readonly $motionBlurEnabled = this._$motionBlurEnabled.asObservable();
+
+  private _motionBlurEnabledTransform = (v: boolean) => {
+    const valid = validateBoolean(v);
+
+    if (!valid) {
+      console.error('The "motionBlurEnabled" parameter must be of type `boolean`.');
+      return DEFAULT_MOTION_BLUR_ENABLED;
+    }
+    return v;
+  };
 
   /**
    * Determines whether to apply motion blur or not. The default value is `false`.
    */
-  motionBlurEnabled = input<boolean>(DEFAULT_MOTION_BLUR_ENABLED, { ...this._motionBlurEnabledOptions });
+  @Input()
+  set motionBlurEnabled(v: boolean) {
+    if (this._$motionBlurEnabled.getValue() === v) {
+      return;
+    }
 
-  private _animationParamsOptions = {
-    transform: (v: IAnimationParams) => {
-      const valid = validateObject(v, true, true);
+    const transformedValue = this._motionBlurEnabledTransform(v);
 
-      if (!validateFloat(v.scrollToItem)) {
-        console.error('The "scrollToItem" parameter must be of type `number`.');
-        return DEFAULT_ANIMATION_PARAMS;
-      }
-      if (!validateFloat(v.snapToItem)) {
-        console.error('The "snapToItem" parameter must be of type `number`.');
-        return DEFAULT_ANIMATION_PARAMS;
-      }
-      if (!valid) {
-        console.error('The "animationParams" parameter must be of type `object`.');
-        return DEFAULT_ANIMATION_PARAMS;
-      }
-      return v;
-    },
-  } as any;
+    this._$motionBlurEnabled.next(transformedValue);
+  };
+  get motionBlurEnabled() { return this._$motionBlurEnabled.getValue(); }
+
+
+  private _$animationParams = new BehaviorSubject<IAnimationParams>(DEFAULT_ANIMATION_PARAMS);
+  protected readonly $animationParams = this._$animationParams.asObservable();
+
+  private _animationParamsTransform = (v: IAnimationParams) => {
+    const valid = validateObject(v, true, true);
+
+    if (!validateFloat(v.scrollToItem)) {
+      console.error('The "scrollToItem" parameter must be of type `number`.');
+      return DEFAULT_ANIMATION_PARAMS;
+    }
+    if (!validateFloat(v.snapToItem)) {
+      console.error('The "snapToItem" parameter must be of type `number`.');
+      return DEFAULT_ANIMATION_PARAMS;
+    }
+    if (!valid) {
+      console.error('The "animationParams" parameter must be of type `object`.');
+      return DEFAULT_ANIMATION_PARAMS;
+    }
+    return v;
+  };
 
   /**
    * Animation parameters. The default value is "{ scrollToItem: 0, snapToItem: 150 }".
    */
-  animationParams = input<IAnimationParams>(DEFAULT_ANIMATION_PARAMS, { ...this._animationParamsOptions });
+  @Input()
+  set animationParams(v: IAnimationParams) {
+    if (this._$animationParams.getValue() === v) {
+      return;
+    }
 
-  private _overscrollEnabledOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v, true);
+    const transformedValue = this._animationParamsTransform(v);
 
-      if (!valid) {
-        console.error('The "overscrollEnabled" parameter must be of type `boolean`.');
-        return DEFAULT_OVERSCROLL_ENABLED;
-      }
-      return v;
-    },
-  } as any;
+    this._$animationParams.next(transformedValue);
+  };
+  get animationParams() { return this._$animationParams.getValue(); }
+
+
+  private _$overscrollEnabled = new BehaviorSubject<boolean>(DEFAULT_OVERSCROLL_ENABLED);
+  protected readonly $overscrollEnabled = this._$overscrollEnabled.asObservable();
+
+  private _overscrollEnabledTransform = (v: boolean) => {
+    const valid = validateBoolean(v, true);
+
+    if (!valid) {
+      console.error('The "overscrollEnabled" parameter must be of type `boolean`.');
+      return DEFAULT_OVERSCROLL_ENABLED;
+    }
+    return v;
+  };
 
   /**
    * Determines whether the overscroll (re-scroll) feature will work. The default value is "true".
    */
-  overscrollEnabled = input<boolean>(DEFAULT_OVERSCROLL_ENABLED, { ...this._overscrollEnabledOptions });
+  @Input()
+  set overscrollEnabled(v: boolean) {
+    if (this._$overscrollEnabled.getValue() === v) {
+      return;
+    }
 
-  private _directionOptions = {
-    transform: (v: Direction) => {
-      const valid = validateString(v) && (v === 'horizontal' || v === 'vertical' || v === 'both');
-      if (!valid) {
-        console.error('The "direction" parameter must be one of `horizontal`, `vertical` or `both`.');
-        return DEFAULT_DIRECTION;
-      }
-      return v;
-    },
-  } as any;
+    const transformedValue = this._overscrollEnabledTransform(v);
+
+    this._$overscrollEnabled.next(transformedValue);
+  };
+  get overscrollEnabled() { return this._$overscrollEnabled.getValue(); }
+
+  private _$direction = new BehaviorSubject<Direction>(DEFAULT_DIRECTION);
+  protected readonly $direction = this._$direction.asObservable();
+
+  private _directionTransform = (v: Direction) => {
+    const valid = validateString(v) && (v === 'horizontal' || v === 'vertical');
+    if (!valid) {
+      console.error('The "direction" parameter must be one of `horizontal` or `vertical`.');
+      return DEFAULT_DIRECTION;
+    }
+    return v;
+  };
 
   /**
-   * Determines the direction in which elements are placed. Default value is "both".
+   * Determines the direction in which elements are placed. Default value is "vertical".
    */
-  direction = input<Direction>(DEFAULT_DIRECTION, { ...this._directionOptions });
+  @Input()
+  set direction(v: Direction) {
+    if (this._$direction.getValue() === v) {
+      return;
+    }
 
-  private _loading = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v);
+    const transformedValue = this._directionTransform(v);
 
-      if (!valid) {
-        console.error('The "loading" parameter must be of type `boolean`.');
-        return false;
-      }
-      return v;
-    },
-  } as any;
+    this._$direction.next(transformedValue);
+  };
+  get direction() { return this._$direction.getValue(); }
+
+  private _$loading = new BehaviorSubject<boolean>(false);
+  protected readonly $loading = this._$loading.asObservable();
+
+  private _loadingTransform = (v: boolean) => {
+    const valid = validateBoolean(v);
+
+    if (!valid) {
+      console.error('The "loading" parameter must be of type `boolean`.');
+      return false;
+    }
+    return v;
+  };
 
   /**
    * If `true`, the scrollBar goes into loading state. The default value is `false`.
    */
-  loading = input<boolean>(false, { ...this._loading });
+  @Input()
+  set loading(v: boolean) {
+    if (this._$loading.getValue() === v) {
+      return;
+    }
 
-  private _langTextDir = {
-    transform: (v: TextDirection) => {
-      const valid = validateString(v) && (v === TextDirections.LTR || v === TextDirections.RTL);
-      if (!valid) {
-        console.error('The "langTextDir" parameter must be of type `string`.');
-        return DEFAULT_LANG_TEXT_DIR;
-      }
-      return v;
-    },
-  } as any;
+    const transformedValue = this._loadingTransform(v);
+
+    this._$loading.next(transformedValue);
+  };
+  get loading() { return this._$loading.getValue() as boolean; }
+
+  private _$langTextDir = new BehaviorSubject<TextDirection>(DEFAULT_LANG_TEXT_DIR);
+  protected readonly $langTextDir = this._$langTextDir.asObservable();
+
+  private _langTextDirTransform = (v: TextDirection) => {
+    const valid = validateString(v);
+    if (!valid) {
+      console.error('The "langTextDir" parameter must be of type `string`.');
+      return DEFAULT_LANG_TEXT_DIR;
+    }
+    return v;
+  };
 
   /**
    * A string indicating the direction of text for the locale.
    * Can be either "ltr" (left-to-right) or "rtl" (right-to-left).
    */
-  langTextDir = input<TextDirection>(DEFAULT_LANG_TEXT_DIR, { ...this._langTextDir });
+  @Input()
+  set langTextDir(v: TextDirection) {
+    if (this._$langTextDir.getValue() === v) {
+      return;
+    }
 
-  protected _isInfinity: Signal<boolean>;
+    const transformedValue = this._langTextDirTransform(v);
 
-  protected readonly focusedElement = signal<Id | null>(null);
+    this._$langTextDir.next(transformedValue);
+  };
+  get langTextDir() { return this._$langTextDir.getValue(); }
 
-  protected readonly classes = signal<{ [cName: string]: boolean }>({ prepared: true });
+  protected _$isInfinity = new BehaviorSubject<boolean>(false);
+  protected $isInfinity = this._$isInfinity.asObservable();
+  protected get isInfinity() {
+    return this._$isInfinity.getValue();
+  }
 
-  private _bounds = signal<ISize | null>(null);
-  protected get bounds() { return this._bounds; }
+  private _$focusedElement = new BehaviorSubject<Id | null>(null);
+  protected $focusedElement = this._$focusedElement.asObservable();
 
-  protected _actualScrollbarEnabled: Signal<boolean>;
+  private _$classes = new BehaviorSubject<{ [cName: string]: boolean }>({});
+  protected $classes = this._$classes.asObservable();
 
-  private _actualAlignment: Signal<Alignment>;
-  protected get actualAlignment() { return this._actualAlignment; }
+  private _$bounds = new BehaviorSubject<ISize | null>(null);
+  protected $bounds: Observable<ISize | null> = this._$bounds.asObservable();
 
-  private _scrollerBounds = signal<ISize | null>(null);
+  private _$actualScrollbarEnabled = new BehaviorSubject<boolean>(this.scrollbarEnabled);
+  protected $actualScrollbarEnabled: Observable<boolean> = this._$actualScrollbarEnabled.asObservable();
+
+  private _$actualAlignment = new BehaviorSubject<Alignment>(this.alignment);
+  protected $actualAlignment: Observable<Alignment> = this._$actualAlignment.asObservable();
+  protected get actualAlignment() { return this._$actualAlignment.getValue(); }
+
+  private _$scrollerBounds = new BehaviorSubject<ISize | null>(null);
+  protected $scrollerBounds: Observable<ISize | null> = this._$scrollerBounds.asObservable();
 
   private _$scrollSizeX = new BehaviorSubject<number>(0);
+  protected $scrollSizeX: Observable<number> = this._$scrollSizeX.asObservable();
 
   private _$scrollSizeY = new BehaviorSubject<number>(0);
+  protected $scrollSizeY: Observable<number> = this._$scrollSizeY.asObservable();
 
-  private _isScrollLeft = signal<boolean>(true);
+  private _$isScrollLeft = new BehaviorSubject<boolean>(true);
+  protected $isScrollLeft: Observable<boolean> = this._$isScrollLeft.asObservable();
 
-  private _isScrollRight = signal<boolean>(false);
+  private _$isScrollRight = new BehaviorSubject<boolean>(false);
+  protected $isScrollRight: Observable<boolean> = this._$isScrollRight.asObservable();
 
-  private _isScrollTop = signal<boolean>(true);
+  private _$isScrollTop = new BehaviorSubject<boolean>(true);
+  protected $isScrollTop: Observable<boolean> = this._$isScrollTop.asObservable();
 
-  private _isScrollBottom = signal<boolean>(false);
+  private _$isScrollBottom = new BehaviorSubject<boolean>(false);
+  protected $isScrollBottom: Observable<boolean> = this._$isScrollBottom.asObservable();
 
-  protected _precalculatedScrollLeftOffset = signal<number>(0);
+  protected _$precalculatedScrollLeftOffset = new BehaviorSubject<number>(0);
+  protected $precalculatedScrollLeftOffset: Observable<number> = this._$precalculatedScrollLeftOffset.asObservable();
 
-  protected _precalculatedScrollTopOffset = signal<number>(0);
+  protected _$precalculatedScrollTopOffset = new BehaviorSubject<number>(0);
+  protected $precalculatedScrollTopOffset: Observable<number> = this._$precalculatedScrollTopOffset.asObservable();
 
-  protected _precalculatedScrollRightOffset = signal<number>(0);
+  protected _$precalculatedScrollRightOffset = new BehaviorSubject<number>(0);
+  protected $precalculatedScrollRightOffset: Observable<number> = this._$precalculatedScrollRightOffset.asObservable();
 
-  protected _precalculatedScrollBottomOffset = signal<number>(0);
+  protected _$precalculatedScrollBottomOffset = new BehaviorSubject<number>(0);
+  protected $precalculatedScrollBottomOffset: Observable<number> = this._$precalculatedScrollBottomOffset.asObservable();
 
-  protected _actualScrollLeftOffset = signal<number>(0);
+  protected _$actualScrollLeftOffset = new BehaviorSubject<number>(0);
+  protected $actualScrollLeftOffset: Observable<number> = this._$actualScrollLeftOffset.asObservable();
 
-  protected _actualScrollRightOffset = signal<number>(0);
+  protected _$actualScrollRightOffset = new BehaviorSubject<number>(0);
+  protected $actualScrollRightOffset: Observable<number> = this._$actualScrollRightOffset.asObservable();
 
-  protected _actualScrollTopOffset = signal<number>(0);
+  protected _$actualScrollTopOffset = new BehaviorSubject<number>(0);
+  protected $actualScrollTopOffset: Observable<number> = this._$actualScrollTopOffset.asObservable();
 
-  protected _actualScrollBottomOffset = signal<number>(0);
+  protected _$actualScrollBottomOffset = new BehaviorSubject<number>(0);
+  protected $actualScrollBottomOffset: Observable<number> = this._$actualScrollBottomOffset.asObservable();
 
-  protected _actualSnapScrollToLeft: Signal<boolean>;
+  protected _$actualSnapScrollToLeft = new BehaviorSubject<boolean>(false);
+  protected $actualSnapScrollToLeft: Observable<boolean> = this._$actualSnapScrollToLeft.asObservable();
 
-  protected _actualSnapScrollToRight: Signal<boolean>;
+  protected _$actualSnapScrollToRight = new BehaviorSubject<boolean>(false);
+  protected $actualSnapScrollToRight: Observable<boolean> = this._$actualSnapScrollToRight.asObservable();
 
-  protected _actualSnapScrollToTop: Signal<boolean>;
+  protected _$actualSnapScrollToTop = new BehaviorSubject<boolean>(false);
+  protected $actualSnapScrollToTop: Observable<boolean> = this._$actualSnapScrollToTop.asObservable();
 
-  protected _actualSnapScrollToBottom: Signal<boolean>;
+  protected _$actualSnapScrollToBottom = new BehaviorSubject<boolean>(false);
+  protected $actualSnapScrollToBottom: Observable<boolean> = this._$actualSnapScrollToBottom.asObservable();
 
-  protected _alignmentScrollLeftOffset = signal<number>(0);
+  protected _$alignmentScrollLeftOffset = new BehaviorSubject<number>(0);
+  protected $alignmentScrollLeftOffset: Observable<number> = this._$alignmentScrollLeftOffset.asObservable();
 
-  protected _alignmentScrollRightOffset = signal<number>(0);
+  protected _$alignmentScrollRightOffset = new BehaviorSubject<number>(0);
+  protected $alignmentScrollRightOffset: Observable<number> = this._$alignmentScrollRightOffset.asObservable();
 
-  protected _alignmentScrollTopOffset = signal<number>(0);
+  protected _$alignmentScrollTopOffset = new BehaviorSubject<number>(0);
+  protected $alignmentScrollTopOffset: Observable<number> = this._$alignmentScrollTopOffset.asObservable();
 
-  protected _alignmentScrollBottomOffset = signal<number>(0);
+  protected _$alignmentScrollBottomOffset = new BehaviorSubject<number>(0);
+  protected $alignmentScrollBottomOffset: Observable<number> = this._$alignmentScrollBottomOffset.asObservable();
 
   private _elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
@@ -846,8 +1251,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   private _$preventScrollSnapping = new BehaviorSubject<boolean>(false);
   protected readonly $preventScrollSnapping = this._$preventScrollSnapping.asObservable();
 
-  private _destroyRef = inject(DestroyRef);
-
   private _isLoading = false;
 
   private _animationIds: Array<number> | null = null;
@@ -858,17 +1261,92 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   private _injector = inject(Injector);
 
   constructor() {
+    super();
     NgVirtualScrollViewComponent.__nextId = NgVirtualScrollViewComponent.__nextId + 1 === Number.MAX_SAFE_INTEGER
       ? 0 : NgVirtualScrollViewComponent.__nextId + 1;
     this._id = NgVirtualScrollViewComponent.__nextId;
 
+    this._service.initialize(this._id);
+
+    const $animationParams = this.$animationParams;
+    $animationParams.pipe(
+      takeUntil(this._$unsubscribe),
+      tap(v => {
+        this._service.animationParams = v;
+      }),
+    ).subscribe();
+
+    this.$spreadingMode.pipe(
+      takeUntil(this._$unsubscribe),
+      tap(v => {
+        this._$isInfinity.next(isSpreadingMode(v, SpreadingModes.INFINITY));
+      }),
+    ).subscribe();
+
+    const $isInfinity = this.$isInfinity;
+    $isInfinity.pipe(
+      takeUntil(this._$unsubscribe),
+      tap(v => {
+        this._service.isInfinity = v;
+      }),
+    ).subscribe();
+
+    const $bounds = this.$bounds.pipe(
+      filter(b => !!b),
+    ),
+      $rawScrollLeftOffset = this.$scrollLeftOffset,
+      $rawScrollRightOffset = this.$scrollRightOffset,
+      $rawScrollTopOffset = this.$scrollTopOffset,
+      $rawScrollBottomOffset = this.$scrollBottomOffset;
+
+    combineLatest([$bounds, $rawScrollLeftOffset]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds!.width);
+        this._$precalculatedScrollLeftOffset.next(val);
+      }),
+    ).subscribe();
+
+    combineLatest([$bounds, $rawScrollRightOffset]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds!.width);
+        this._$precalculatedScrollRightOffset.next(val);
+      }),
+    ).subscribe();
+
+    combineLatest([$bounds, $rawScrollTopOffset]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds!.height);
+        this._$precalculatedScrollTopOffset.next(val);
+      }),
+    ).subscribe();
+
+    combineLatest([$bounds, $rawScrollBottomOffset]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([bounds, value]) => {
+        const val = parseArithmeticExpression(value, bounds!.height);
+        this._$precalculatedScrollBottomOffset.next(val);
+      }),
+    ).subscribe();
+
+    this._service.$tick.pipe(
+      takeUntil(this._$unsubscribe),
+      tap(() => {
+        this._scrollerComponent?.tick();
+      }),
+    ).subscribe();
+  }
+
+  ngAfterViewInit() {
     let hasUserAction = false;
 
     const _$created = new BehaviorSubject<boolean>(false),
       $created = _$created.asObservable();
 
     combineLatest([$created, this.$show]).pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(([created, shown]) => created && shown),
       debounceTime(1),
       tap(v => {
@@ -876,131 +1354,62 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       }),
     ).subscribe();
 
-    this._service.initialize(this._id);
-
-    const $animationParams = toObservable(this.animationParams);
-    $animationParams.pipe(
-      takeUntilDestroyed(),
-      tap(v => {
-        this._service.animationParams = v;
-      }),
-    ).subscribe();
-
-    this._isInfinity = computed(() => {
-      const mode = this.spreadingMode();
-      return isSpreadingMode(mode, SpreadingModes.INFINITY);
-    });
-
-    const $isInfinity = toObservable(this._isInfinity);
-    $isInfinity.pipe(
-      takeUntilDestroyed(),
-      tap(v => {
-        this._service.isInfinity = v;
-      }),
-    ).subscribe();
-
-    const $bounds = toObservable(this._bounds).pipe(
-      filter(b => !!b),
-    ),
-      $rawScrollLeftOffset = toObservable(this.scrollLeftOffset),
-      $rawScrollRightOffset = toObservable(this.scrollRightOffset),
-      $rawScrollTopOffset = toObservable(this.scrollTopOffset),
-      $rawScrollBottomOffset = toObservable(this.scrollBottomOffset);
-
-    combineLatest([$bounds, $rawScrollLeftOffset]).pipe(
-      takeUntilDestroyed(),
-      tap(([bounds, value]) => {
-        const val = parseArithmeticExpression(value, bounds.width);
-        this._precalculatedScrollLeftOffset.set(val);
-      }),
-    ).subscribe();
-
-    combineLatest([$bounds, $rawScrollRightOffset]).pipe(
-      takeUntilDestroyed(),
-      tap(([bounds, value]) => {
-        const val = parseArithmeticExpression(value, bounds.width);
-        this._precalculatedScrollRightOffset.set(val);
-      }),
-    ).subscribe();
-
-    combineLatest([$bounds, $rawScrollTopOffset]).pipe(
-      takeUntilDestroyed(),
-      tap(([bounds, value]) => {
-        const val = parseArithmeticExpression(value, bounds.height);
-        this._precalculatedScrollTopOffset.set(val);
-      }),
-    ).subscribe();
-
-    combineLatest([$bounds, $rawScrollBottomOffset]).pipe(
-      takeUntilDestroyed(),
-      tap(([bounds, value]) => {
-        const val = parseArithmeticExpression(value, bounds.height);
-        this._precalculatedScrollBottomOffset.set(val);
-      }),
-    ).subscribe();
-
-    this._service.$tick.pipe(
-      takeUntilDestroyed(),
-      tap(() => {
-        // this.checkBoundsOfElements();
-        this._scrollerComponent()?.tick();
-      }),
-    ).subscribe();
-
-    const $scrollerComponent = toObservable(this._scrollerComponent),
+    const $isInfinity = this.$isInfinity,
+      $bounds = this.$bounds.pipe(
+        filter(b => !!b),
+      ),
+      $scrollerComponent = of(this._scrollerComponent),
       $resizeViewport = $scrollerComponent.pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         filter(v => !!v),
-        switchMap(scroller => scroller.$resizeViewport),
+        switchMap(scroller => scroller!.$resizeViewport),
       ),
       $resizeContent = $scrollerComponent.pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         filter(v => !!v),
-        switchMap(scroller => scroller.$resizeContent),
+        switchMap(scroller => scroller!.$resizeContent),
       );
 
     $resizeViewport.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       tap(v => {
-        this._bounds.set(v);
+        this._$bounds.next(v);
         this.onAfterResize(true);
       }),
     ).subscribe();
 
     $resizeContent.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       tap(v => {
-        this._scrollerBounds.set(v);
+        this._$scrollerBounds.next(v);
         this.onAfterResize();
       }),
     ).subscribe();
 
-    const $scrollLeftOffset = toObservable(this._actualScrollLeftOffset).pipe(
-      takeUntilDestroyed(),
+    const $scrollLeftOffset = this.$actualScrollLeftOffset.pipe(
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
     ),
-      $scrollRightOffset = toObservable(this._actualScrollRightOffset).pipe(
-        takeUntilDestroyed(),
+      $scrollRightOffset = this.$actualScrollRightOffset.pipe(
+        takeUntil(this._$unsubscribe),
         distinctUntilChanged(),
       ),
-      $scrollTopOffset = toObservable(this._actualScrollTopOffset).pipe(
-        takeUntilDestroyed(),
+      $scrollTopOffset = this.$actualScrollTopOffset.pipe(
+        takeUntil(this._$unsubscribe),
         distinctUntilChanged(),
       ),
-      $scrollBottomOffset = toObservable(this._actualScrollBottomOffset).pipe(
-        takeUntilDestroyed(),
+      $scrollBottomOffset = this.$actualScrollBottomOffset.pipe(
+        takeUntil(this._$unsubscribe),
         distinctUntilChanged(),
       );
 
-    this._scroller = computed(() => {
-      return this._scrollerComponent()?.scrollViewport();
-    });
+    this._$scroller.next(this._scrollerComponent?.scrollViewport);
 
-    const $scrollbarThickness = toObservable(this.scrollbarThickness);
+    const $scrollbarThickness = this.$scrollbarThickness;
     $scrollbarThickness.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       tap(scrollbarThickness => {
         this._service.scrollBarSize = scrollbarThickness;
@@ -1008,108 +1417,119 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     this.$fireUpdateNextFrame.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       debounceTime(0),
       tap(userAction => {
         this._$fireUpdate.next(userAction);
       }),
     ).subscribe();
 
-    const $langTextDir = toObservable(this.langTextDir);
+    const $langTextDir = this.$langTextDir;
     $langTextDir.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.langTextDir = v;
       }),
     ).subscribe();
 
-    effect(() => {
-      const dist = this.clickDistance();
-      this._service.clickDistance = dist;
-    });
+    this.$clickDistance.pipe(
+      takeUntil(this._$unsubscribe),
+      distinctUntilChanged(),
+      tap(v => {
+        this._service.clickDistance = v;
+      }),
+    ).subscribe();
 
-    this._actualSnapScrollToLeft = computed(() => {
-      const snapScrollToLeft = this.snapScrollToLeft(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToLeft;
-    });
+    combineLatest([this.$snapScrollToLeft, this.$spreadingMode]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([snapScrollToLeft, spreadingMode]) => {
+        const isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+        this._$actualSnapScrollToLeft.next(isInfinity ? false : snapScrollToLeft);
+      }),
+    ).subscribe();
 
-    this._actualSnapScrollToRight = computed(() => {
-      const snapScrollToRight = this.snapScrollToRight(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToRight;
-    });
+    combineLatest([this.$snapScrollToRight, this.$spreadingMode]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([snapScrollToRight, spreadingMode]) => {
+        const isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+        this._$actualSnapScrollToRight.next(isInfinity ? false : snapScrollToRight);
+      }),
+    ).subscribe();
 
-    this._actualSnapScrollToTop = computed(() => {
-      const snapScrollToTop = this.snapScrollToTop(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToTop;
-    });
+    combineLatest([this.$snapScrollToTop, this.$spreadingMode]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([snapScrollToTop, spreadingMode]) => {
+        const isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+        this._$actualSnapScrollToTop.next(isInfinity ? false : snapScrollToTop);
+      }),
+    ).subscribe();
 
-    this._actualSnapScrollToBottom = computed(() => {
-      const snapScrollToBottom = this.snapScrollToBottom(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToBottom;
-    });
+    combineLatest([this.$snapScrollToBottom, this.$spreadingMode]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([snapScrollToBottom, spreadingMode]) => {
+        const isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
+        this._$actualSnapScrollToBottom.next(isInfinity ? false : snapScrollToBottom);
+      }),
+    ).subscribe();
 
     const $viewInit = this.$viewInit,
       $fireUpdate = this.$fireUpdate;
 
     $fireUpdate.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(userAction => {
         hasUserAction = userAction;
       }),
     ).subscribe();
 
-    const $snapScrollToLeft = toObservable(this._actualSnapScrollToLeft),
-      $snapScrollToRight = toObservable(this._actualSnapScrollToRight),
-      $snapScrollToTop = toObservable(this._actualSnapScrollToTop),
-      $snapScrollToBottom = toObservable(this._actualSnapScrollToBottom);
+    const $snapScrollToLeft = this.$actualSnapScrollToLeft,
+      $snapScrollToRight = this.$actualSnapScrollToRight,
+      $snapScrollToTop = this.$actualSnapScrollToTop,
+      $snapScrollToBottom = this.$actualSnapScrollToBottom;
 
-    const $isScrollLeft = toObservable(this._isScrollLeft),
-      $isScrollRight = toObservable(this._isScrollRight),
-      $isScrollTop = toObservable(this._isScrollTop),
-      $isScrollBottom = toObservable(this._isScrollBottom),
-      $direction = toObservable(this.direction);
+    const $isScrollLeft = this.$isScrollLeft,
+      $isScrollRight = this.$isScrollRight,
+      $isScrollTop = this.$isScrollTop,
+      $isScrollBottom = this.$isScrollBottom,
+      $direction = this.$direction;
 
     $snapScrollToLeft.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.snapScrollToLeft = v;
       }),
     ).subscribe();
 
     $snapScrollToRight.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.snapScrollToRight = v;
       }),
     ).subscribe();
 
     $snapScrollToTop.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.snapScrollToTop = v;
       }),
     ).subscribe();
 
     $snapScrollToBottom.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.snapScrollToBottom = v;
       }),
     ).subscribe();
 
     $direction.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.direction = v;
       }),
     ).subscribe();
 
     $scrollLeftOffset.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       tap(v => {
         this._service.scrollLeftOffset = v;
@@ -1117,7 +1537,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $scrollRightOffset.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       tap(v => {
         this._service.scrollRightOffset = v;
@@ -1125,7 +1545,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $scrollTopOffset.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       tap(v => {
         this._service.scrollTopOffset = v;
@@ -1133,7 +1553,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $scrollBottomOffset.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       tap(v => {
         this._service.scrollBottomOffset = v;
@@ -1141,104 +1561,109 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $isScrollLeft.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       skip(1),
       distinctUntilChanged(),
       debounceTime(0),
       filter(v => !!v),
       tap(() => {
-        if (this._scrollerComponent()?.scrollableX) {
+        if (this._scrollerComponent?.scrollableX) {
           this.onScrollReachLeft.emit();
         }
       }),
     ).subscribe();
 
     $isScrollRight.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       skip(1),
       distinctUntilChanged(),
       debounceTime(0),
       filter(v => !!v),
       tap(v => {
-        if (this._scrollerComponent()?.scrollableX) {
+        if (this._scrollerComponent?.scrollableX) {
           this.onScrollReachRight.emit();
         }
       }),
     ).subscribe();
 
     $isScrollTop.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       skip(1),
       distinctUntilChanged(),
       debounceTime(0),
       filter(v => !!v),
       tap(v => {
-        if (this._scrollerComponent()?.scrollableY) {
+        if (this._scrollerComponent?.scrollableY) {
           this.onScrollReachTop.emit();
         }
       }),
     ).subscribe();
 
     $isScrollBottom.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       skip(1),
       distinctUntilChanged(),
       debounceTime(0),
       filter(v => !!v),
       tap(v => {
-        if (this._scrollerComponent()?.scrollableY) {
+        if (this._scrollerComponent?.scrollableY) {
           this.onScrollReachBottom.emit();
         }
       }),
     ).subscribe();
 
-    this._actualAlignment = computed(() => {
-      const alignment = this.alignment(), spreadingMode = this.spreadingMode();
-      return isSpreadingMode(spreadingMode, SpreadingModes.INFINITY) ? Alignments.CENTER : alignment;
-    });
+    combineLatest([this.$alignment, this.$isInfinity]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([alignment, isInfinity]) => {
+        this._$actualAlignment.next(isInfinity ? Alignments.CENTER : alignment);
+      }),
+    ).subscribe();
 
-    this._actualScrollbarEnabled = computed(() => {
-      const scrollbarEnabled = this.scrollbarEnabled(), spreadingMode = this.spreadingMode();
-      return isSpreadingMode(spreadingMode, SpreadingModes.INFINITY) ? false : scrollbarEnabled;
-    });
+    combineLatest([this.$scrollbarEnabled, this.$isInfinity]).pipe(
+      takeUntil(this._$unsubscribe),
+      debounceTime(0),
+      tap(([scrollbarEnabled, isInfinity]) => {
+        this._$actualScrollbarEnabled.next(isInfinity ? false : scrollbarEnabled);
+      }),
+    ).subscribe();
 
-    const $alignment = toObservable(this._actualAlignment),
-      $precalculatedScrollLeftOffset = toObservable(this._precalculatedScrollLeftOffset),
-      $precalculatedScrollRightOffset = toObservable(this._precalculatedScrollRightOffset),
-      $precalculatedScrollTopOffset = toObservable(this._precalculatedScrollTopOffset),
-      $precalculatedScrollBottomOffset = toObservable(this._precalculatedScrollBottomOffset),
-      $scrollerBounds = toObservable(this._scrollerBounds).pipe(
+    const $alignment = this.$actualAlignment,
+      $precalculatedScrollLeftOffset = this.$precalculatedScrollLeftOffset,
+      $precalculatedScrollRightOffset = this.$precalculatedScrollRightOffset,
+      $precalculatedScrollTopOffset = this.$precalculatedScrollTopOffset,
+      $precalculatedScrollBottomOffset = this.$precalculatedScrollBottomOffset,
+      $scrollerBounds = this.$scrollerBounds.pipe(
         filter(b => !!b),
       ),
       $scrollSizeX = this._$scrollSizeX.asObservable().pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         distinctUntilChanged(),
       ),
       $scrollSizeY = this._$scrollSizeY.asObservable().pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         distinctUntilChanged(),
       ),
-      $snapToItem = toObservable(this.snapToItem),
-      $snapToItemAlign = toObservable(this.snapToItemAlign);
+      $snapToItem = this.$snapToItem,
+      $snapToItemAlign = this.$snapToItemAlign;
 
     $snapToItem.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         this._service.snapToItem = v;
       }),
     ).subscribe();
 
     $viewInit.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       debounceTime(0),
       tap(() => {
-        this._scrollerComponent()?.snapIfNeed();
+        this._scrollerComponent?.snapIfNeed();
       }),
     ).subscribe();
 
     $direction.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(v => {
         const el: HTMLElement = this._elementRef.nativeElement;
         if (isDirection(Directions.BOTH, v)) {
@@ -1254,21 +1679,21 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     const $preventScrollSnapping = this.$preventScrollSnapping;
 
     $preventScrollSnapping.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       tap(() => {
-        this._isScrollLeft.set(false);
-        this._isScrollRight.set(false);
+        this._$isScrollLeft.next(false);
+        this._$isScrollRight.next(false);
       }),
       tap(() => {
         this._$preventScrollSnapping.next(false);
       }),
     ).subscribe();
 
-    const $loading = toObservable(this.loading);
+    const $loading = this.$loading;
 
     $loading.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       skip(1),
       distinctUntilChanged(),
       tap(v => {
@@ -1287,7 +1712,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $viewInit.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       switchMap(() => {
         return combineLatest([$isInfinity, $snapScrollToLeft, $snapScrollToRight, $snapScrollToTop, $snapScrollToBottom, $precalculatedScrollLeftOffset, $precalculatedScrollRightOffset, $precalculatedScrollTopOffset,
@@ -1295,14 +1720,14 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
           $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollBottomOffset, $scrollSizeX, $scrollSizeY, $direction, $snapToItem, $snapToItemAlign,
           $alignment, this.$fireUpdate,
         ]).pipe(
-          takeUntilDestroyed(this._destroyRef),
+          takeUntil(this._$unsubscribe),
           tap(([
             isInfinity, snapScrollToLeft, snapScrollToRight, snapScrollToTop, snapScrollToBottom, precalculatedScrollLeftOffset, precalculatedScrollRightOffset,
             precalculatedScrollTopOffset, precalculatedScrollBottomOffset, bounds, scrollerBounds,
             scrollLeftOffset, scrollRightOffset, scrollTopOffset, scrollBottomOffset, scrollSizeX, scrollSizeY, direction, snapToItem, snapToItemAlign,
             alignment,
           ]) => {
-            const scroller = this._scrollerComponent();
+            const scroller = this._scrollerComponent;
             if (!!scroller) {
               const userAction = hasUserAction, ready = _$created.getValue();
 
@@ -1329,8 +1754,8 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
                   const params: IScrollToParams = {
                     [LEFT_PROP_NAME]: 0, userAction,
-                    fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
+                    fireUpdate: true, behavior: (this.animationParams.scrollToItem > 0 && this.scrollBehavior !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams.scrollToItem,
                   };
                   const animationIds = scroller?.scrollTo?.(params);
                   if (animationIds !== null) {
@@ -1346,8 +1771,8 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
                   const params: IScrollToParams = {
                     [TOP_PROP_NAME]: 0, userAction,
-                    fireUpdate: true, behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
+                    fireUpdate: true, behavior: (this.animationParams.scrollToItem > 0 && this.scrollBehavior !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams.scrollToItem,
                   };
                   const animationIds = scroller?.scrollTo?.(params);
                   if (animationIds !== null) {
@@ -1368,8 +1793,8 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
                   const params: IScrollToParams = {
                     [LEFT_PROP_NAME]: roundedMaxPositionAfterUpdateX,
-                    behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    userAction: false, blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
+                    behavior: (this.animationParams.scrollToItem > 0 && this.scrollBehavior !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    userAction: false, blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams.scrollToItem,
                   };
                   const animationIds = scroller?.scrollTo?.(params);
                   if (animationIds !== null) {
@@ -1386,8 +1811,8 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
 
                   const params: IScrollToParams = {
                     [TOP_PROP_NAME]: roundedMaxPositionAfterUpdateY,
-                    behavior: (this.animationParams().scrollToItem > 0 && this.scrollBehavior() !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
-                    userAction: false, blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams().scrollToItem,
+                    behavior: (this.animationParams.scrollToItem > 0 && this.scrollBehavior !== BEHAVIOR_INSTANT) ? BEHAVIOR_AUTO : BEHAVIOR_INSTANT,
+                    userAction: false, blending: !!this._animationIds ? scroller.hasAnimation(...this._animationIds) : false, duration: this.animationParams.scrollToItem,
                   };
                   const animationIds = scroller?.scrollTo?.(params);
                   if (animationIds !== null) {
@@ -1408,54 +1833,56 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       }),
     ).subscribe();
 
-    const $scroller = toObservable(this._scroller).pipe(
-      takeUntilDestroyed(),
+    const $scroller = this.$scroller.pipe(
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
-      map(v => v.nativeElement),
+      map(v => v!.nativeElement),
       take(1),
     ),
       $scrollerScroll = $scrollerComponent.pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         filter(v => !!v),
         take(1),
-        switchMap(scroller => scroller.$scroll),
+        switchMap(scroller => scroller!.$scroll),
       ),
       $scrollerScrollEnd = $scrollerComponent.pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         filter(v => !!v),
         take(1),
-        switchMap(scroller => scroller.$scrollEnd),
+        switchMap(scroller => scroller!.$scrollEnd),
       ),
       $scrollbarScroll = $scrollerComponent.pipe(
-        takeUntilDestroyed(),
+        takeUntil(this._$unsubscribe),
         filter(v => !!v),
         take(1),
-        switchMap(scroller => scroller.$scrollbarScroll),
+        switchMap(scroller => scroller!.$scrollbarScroll),
       );
 
     $scrollerComponent.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
-      switchMap(scroller => toObservable(scroller.contentBounds, { injector: this._injector }).pipe(
-        takeUntilDestroyed(this._destroyRef),
+      switchMap(scroller => scroller!.$contentBounds.pipe(
+        takeUntil(this._$unsubscribe),
         tap(({ width, height }) => {
-          scroller.totalWidth = width;
-          scroller.totalHeight = height;
+          if (!!scroller) {
+            scroller.totalWidth = width;
+            scroller.totalHeight = height;
+          }
         })
       )),
     ).subscribe();
 
     $scrollerComponent.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       take(1),
       tap(scroller => {
-        scroller.prepared = true;
+        scroller!.prepared = true;
       }),
     ).subscribe();
 
     const scrollHandler = (userAction: boolean = false) => {
-      const scroller = this._scrollerComponent();
+      const scroller = this._scrollerComponent;
       if (!!scroller) {
         const scrollSizeX = scroller.scrollLeft,
           scrollSizeY = scroller.scrollTop;
@@ -1470,18 +1897,18 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     };
 
     $scroller.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       switchMap(scroller => {
         return $scrollbarScroll.pipe(
-          takeUntilDestroyed(this._destroyRef),
+          takeUntil(this._$unsubscribe),
           tap(userAction => {
-            const scrollerEl = this._scroller()?.nativeElement, scrollerComponent = this._scrollerComponent();
+            const scrollerEl = this._$scroller.getValue()?.nativeElement, scrollerComponent = this._scrollerComponent;
             if (!!scrollerEl && !!scrollerComponent) {
               this.emitScrollEvent(false, true, hasUserAction);
             }
             if (userAction) {
-              if (this._isScrollLeft() || this._isScrollRight() || this._isScrollTop() || this._isScrollBottom()) {
+              if (this._$isScrollLeft.getValue() || this._$isScrollRight.getValue() || this._$isScrollTop.getValue() || this._$isScrollBottom.getValue()) {
                 this._$preventScrollSnapping.next(true);
               }
               this._$preventScrollSnapping.next(true);
@@ -1492,16 +1919,16 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $scroller.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       switchMap(scroller => {
         return $scrollerScroll.pipe(
-          takeUntilDestroyed(this._destroyRef),
+          takeUntil(this._$unsubscribe),
         );
       }),
       tap(userAction => {
         hasUserAction = userAction;
-        const scrollerEl = this._scroller()?.nativeElement, scrollerComponent = this._scrollerComponent();
+        const scrollerEl = this._$scroller.getValue()?.nativeElement, scrollerComponent = this._scrollerComponent;
         if (!!scrollerEl && !!scrollerComponent) {
           this.emitScrollEvent(false, true, userAction);
         }
@@ -1510,16 +1937,16 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $scroller.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
       switchMap(scroller => {
         return $scrollerScrollEnd.pipe(
-          takeUntilDestroyed(this._destroyRef),
+          takeUntil(this._$unsubscribe),
         );
       }),
       tap(userAction => {
         hasUserAction = userAction;
-        const scrollerEl = this._scroller()?.nativeElement, scrollerComponent = this._scrollerComponent();
+        const scrollerEl = this._$scroller.getValue()?.nativeElement, scrollerComponent = this._scrollerComponent;
         if (!!scrollerEl && !!scrollerComponent) {
           this.emitScrollEvent(true, true, userAction);
         }
@@ -1528,16 +1955,15 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     ).subscribe();
 
     $bounds.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       distinctUntilChanged(),
+      filter(v => !!v),
       tap(value => {
-        const size: ISize = { width: value.width, height: value.height };
+        const size: ISize = { width: value!.width, height: value!.height };
         this.onViewportChange.emit(objectAsReadonly(size));
       }),
     ).subscribe();
-  }
 
-  ngAfterViewInit() {
     this._$viewInit.next(true);
 
     this._$fireUpdate.next(false);
@@ -1547,7 +1973,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     this.snappingHandler();
 
     if (update) {
-      const scroller = this._scrollerComponent();
+      const scroller = this._scrollerComponent;
       if (!!scroller) {
         this._$fireUpdate.next(false);
         scroller.refresh(true, true);
@@ -1556,7 +1982,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   }
 
   private snappingHandler() {
-    const scroller = this._scrollerComponent();
+    const scroller = this._scrollerComponent;
     if (!!scroller) {
       const maxScrollWidth = Math.round(scroller.scrollWidth ?? 0),
         maxScrollHeight = Math.round(scroller.scrollHeight),
@@ -1567,67 +1993,67 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       if (!this._isLoading) {
         const _isScrollRight = (maxScrollWidth >= (actualScrollWidth - MIN_PIXELS_FOR_PREVENT_SNAPPING)) || !scroller.scrollableX;
         if (_isScrollRight) {
-          this._isScrollLeft.set(false);
-          this._isScrollRight.set(true);
+          this._$isScrollLeft.next(false);
+          this._$isScrollRight.next(true);
         } else {
           const isScrollStart = (maxScrollWidth <= MIN_PIXELS_FOR_PREVENT_SNAPPING);
-          this._isScrollLeft.set(isScrollStart);
-          this._isScrollRight.set(false);
+          this._$isScrollLeft.next(isScrollStart);
+          this._$isScrollRight.next(false);
         }
         const _isScrollBottom = (maxScrollHeight >= (actualScrollHeight - MIN_PIXELS_FOR_PREVENT_SNAPPING)) || !scroller.scrollableY;
         if (_isScrollBottom) {
-          this._isScrollTop.set(false);
-          this._isScrollBottom.set(true);
+          this._$isScrollTop.next(false);
+          this._$isScrollBottom.next(true);
         } else {
           const isScrollTop = (maxScrollHeight <= MIN_PIXELS_FOR_PREVENT_SNAPPING);
-          this._isScrollTop.set(isScrollTop);
-          this._isScrollBottom.set(false);
+          this._$isScrollTop.next(isScrollTop);
+          this._$isScrollBottom.next(false);
         }
       } else {
-        const snapScrollToLeft = this._actualSnapScrollToLeft(), snapScrollToRight = this._actualSnapScrollToRight();
+        const snapScrollToLeft = this._$actualSnapScrollToLeft.getValue(), snapScrollToRight = this._$actualSnapScrollToRight.getValue();
         if (!snapScrollToLeft && snapScrollToRight) {
-          this._isScrollLeft.set(false);
-          this._isScrollRight.set(true);
+          this._$isScrollLeft.next(false);
+          this._$isScrollRight.next(true);
         } else if (snapScrollToLeft && snapScrollToRight) {
-          this._isScrollLeft.set(true);
-          this._isScrollRight.set(false);
+          this._$isScrollLeft.next(true);
+          this._$isScrollRight.next(false);
         } else {
-          this._isScrollLeft.set(false);
-          this._isScrollRight.set(false);
+          this._$isScrollLeft.next(false);
+          this._$isScrollRight.next(false);
         }
-        const snapScrollToTop = this._actualSnapScrollToTop(), snapScrollToBottom = this._actualSnapScrollToBottom();
+        const snapScrollToTop = this._$actualSnapScrollToTop.getValue(), snapScrollToBottom = this._$actualSnapScrollToBottom.getValue();
         if (!snapScrollToTop && snapScrollToBottom) {
-          this._isScrollLeft.set(false);
-          this._isScrollRight.set(true);
+          this._$isScrollLeft.next(false);
+          this._$isScrollRight.next(true);
         } else if (snapScrollToTop && snapScrollToBottom) {
-          this._isScrollLeft.set(true);
-          this._isScrollRight.set(false);
+          this._$isScrollLeft.next(true);
+          this._$isScrollRight.next(false);
         } else {
-          this._isScrollLeft.set(false);
-          this._isScrollRight.set(false);
+          this._$isScrollLeft.next(false);
+          this._$isScrollRight.next(false);
         }
       }
     }
   };
 
   private emitScrollEvent(isScrollEnd: boolean = false, update: boolean = true, userAction: boolean = false) {
-    const scrollerComponent = this._scrollerComponent();
+    const scrollerComponent = this._scrollerComponent;
     if (!!scrollerComponent) {
       const scrollWidth = scrollerComponent.scrollLeft,
         scrollHeight = scrollerComponent.scrollTop,
         maxScrollWidth = scrollerComponent.scrollWidth,
         maxScrollHeight = scrollerComponent.scrollHeight,
-        bounds = this._bounds() || { x: 0, y: 0, width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE };
+        bounds = this._$bounds.getValue() || { x: 0, y: 0, width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE };
 
       const event = new ScrollEvent({
         directionX: scrollerComponent.scrollDirectionX,
         directionY: scrollerComponent.scrollDirectionY,
         bounds,
-        scrollerDirection: this.direction(),
+        scrollerDirection: this.direction,
         scrollWidth,
         scrollHeight,
-        isRight: !scrollerComponent.scrollableX || this._isScrollRight() || (Math.round(scrollWidth) === Math.round(maxScrollWidth)),
-        isBottom: !scrollerComponent.scrollableY || this._isScrollBottom() || (Math.round(scrollHeight) === Math.round(maxScrollHeight)),
+        isRight: !scrollerComponent.scrollableX || this._$isScrollRight.getValue() || (Math.round(scrollWidth) === Math.round(maxScrollWidth)),
+        isBottom: !scrollerComponent.scrollableY || this._$isScrollBottom.getValue() || (Math.round(scrollHeight) === Math.round(maxScrollHeight)),
         userAction,
       });
       if (update) {
@@ -1643,24 +2069,24 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   }
 
   private updateOffsetsByAllignment() {
-    const scrollerComponent = this._scrollerComponent();
+    const scrollerComponent = this._scrollerComponent;
     if (!!scrollerComponent) {
-      const alignment = this._actualAlignment(),
-        isInfinity = this._isInfinity(),
-        { width, height } = this._bounds() || { width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE },
+      const alignment = this._$actualAlignment.getValue(),
+        isInfinity = this._$isInfinity.getValue(),
+        { width, height } = this._$bounds.getValue() || { width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE },
         viewportSizeWidth = width,
         viewportSizeHeight = height,
-        { width: contentWidth, height: contentHeight } = scrollerComponent.contentBounds(),
-        precalculatedScrollLeftOffset = this._precalculatedScrollLeftOffset(),
-        precalculatedScrollRightOffset = this._precalculatedScrollRightOffset(),
-        precalculatedScrollTopOffset = this._precalculatedScrollTopOffset(),
-        precalculatedScrollBottomOffset = this._precalculatedScrollBottomOffset();
+        { width: contentWidth, height: contentHeight } = scrollerComponent.contentBounds,
+        precalculatedScrollLeftOffset = this._$precalculatedScrollLeftOffset.getValue(),
+        precalculatedScrollRightOffset = this._$precalculatedScrollRightOffset.getValue(),
+        precalculatedScrollTopOffset = this._$precalculatedScrollTopOffset.getValue(),
+        precalculatedScrollBottomOffset = this._$precalculatedScrollBottomOffset.getValue();
       switch (alignment) {
         case Alignments.NONE: {
-          this._actualScrollLeftOffset.set(precalculatedScrollLeftOffset);
-          this._actualScrollRightOffset.set(precalculatedScrollRightOffset);
-          this._actualScrollTopOffset.set(precalculatedScrollTopOffset);
-          this._actualScrollBottomOffset.set(precalculatedScrollBottomOffset);
+          this._$actualScrollLeftOffset.next(precalculatedScrollLeftOffset);
+          this._$actualScrollRightOffset.next(precalculatedScrollRightOffset);
+          this._$actualScrollTopOffset.next(precalculatedScrollTopOffset);
+          this._$actualScrollBottomOffset.next(precalculatedScrollBottomOffset);
           break;
         }
         case Alignments.CENTER: {
@@ -1669,14 +2095,14 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
             alignmentTopOffset = viewportSizeHeight * .5 - contentHeight * (isInfinity || !scrollerComponent.scrollableY ? 0 : .5),
             alignmentBottomOffset = viewportSizeHeight * .5 - contentHeight * (isInfinity || !scrollerComponent.scrollableY ? 0 : .5);
 
-          this._alignmentScrollLeftOffset.set(alignmentLeftOffset);
-          this._alignmentScrollRightOffset.set(alignmentRightOffset);
-          this._alignmentScrollTopOffset.set(alignmentTopOffset);
-          this._alignmentScrollBottomOffset.set(alignmentBottomOffset);
-          this._actualScrollLeftOffset.set(precalculatedScrollLeftOffset + alignmentLeftOffset);
-          this._actualScrollRightOffset.set(precalculatedScrollRightOffset + alignmentRightOffset);
-          this._actualScrollTopOffset.set(precalculatedScrollTopOffset + alignmentTopOffset);
-          this._actualScrollBottomOffset.set(precalculatedScrollBottomOffset + alignmentBottomOffset);
+          this._$alignmentScrollLeftOffset.next(alignmentLeftOffset);
+          this._$alignmentScrollRightOffset.next(alignmentRightOffset);
+          this._$alignmentScrollTopOffset.next(alignmentTopOffset);
+          this._$alignmentScrollBottomOffset.next(alignmentBottomOffset);
+          this._$actualScrollLeftOffset.next(precalculatedScrollLeftOffset + alignmentLeftOffset);
+          this._$actualScrollRightOffset.next(precalculatedScrollRightOffset + alignmentRightOffset);
+          this._$actualScrollTopOffset.next(precalculatedScrollTopOffset + alignmentTopOffset);
+          this._$actualScrollBottomOffset.next(precalculatedScrollBottomOffset + alignmentBottomOffset);
           break;
         }
       }
@@ -1696,7 +2122,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       top = options?.top,
       ease = options?.ease,
       duration = options?.duration;
-    const scroller = this._scrollerComponent();
+    const scroller = this._scrollerComponent;
     if (!!scroller) {
       scroller.stopScrolling(true);
       return scroller.scroll({ x, y, left, top, behavior, blending, ease, duration, userAction: true });
@@ -1708,15 +2134,15 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * Prevents the list from snapping to its start or end edge.
    */
   preventSnapping() {
-    const scroller = this._scrollerComponent();
-    this._isScrollLeft.set(false);
-    this._isScrollRight.set(false);
+    const scroller = this._scrollerComponent;
+    this._$isScrollLeft.next(false);
+    this._$isScrollRight.next(false);
     if (!!scroller) {
       scroller.stopScrolling();
     }
   }
 
-  ngOnDestroy(): void {
-
+  override ngOnDestroy(): void {
+    super.ngOnDestroy();
   }
 }

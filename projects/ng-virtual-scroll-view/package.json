@@ -1,6 +1,6 @@
 {
   "name": "ng-virtual-scroll-view",
-  "version": "20.12.4-beta-1",
+  "version": "16.12.4",
   "author": {
     "name": "Evgenii Alexandrovich Grebennikov",
     "email": "djonnyx@gmail.com"
@@ -19,9 +19,9 @@
     "scroll-view"
   ],
   "peerDependencies": {
-    "@angular/cdk": "^20.0.4",
-    "@angular/common": "^20.0.4",
-    "@angular/core": "^20.0.4"
+    "@angular/cdk": "^16.2.0",
+    "@angular/common": "^16.2.0",
+    "@angular/core": "^16.2.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"
