@@ -8,6 +8,7 @@ import { isSpreadingMode } from './is-spreading-mode';
 import { parseArithmeticExpression } from './parse-arithmetic-expression';
 import { parseFloatOrPersentageValue } from './parse-float-or-persentage-value';
 import { toggleClassName } from './toggle-class-name';
+import { Animator, Easing, easeLinear, easeOutQuad, ANIMATOR_MIN_TIMESTAMP } from './animator';
 
 export {
     debounce,
@@ -20,10 +21,15 @@ export {
     toggleClassName,
     ScrollEvent,
     EventEmitter,
+    Animator,
+    easeLinear,
+    easeOutQuad,
+    ANIMATOR_MIN_TIMESTAMP,
 };
 
 export type {
     IDebounce,
     IEventEmitter,
+    Easing,
 };
 
