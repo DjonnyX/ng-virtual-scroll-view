@@ -363,7 +363,7 @@ export class NgScrollerComponent extends NgScrollView {
     if (!!content) {
       const bounds: ISize = {
         width: width ?? content.offsetWidth,
-        height: height ?? content.offsetHeight
+        height: height ?? content.offsetHeight,
       }, b = this.contentBounds();
       if (width === null && height === null && bounds.width === b.width && bounds.height === b.height) {
         return;
