@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import {
-  NgVirtualScrollViewModule, ISize, Id, IScrollingSettings,
+  ISize, Id, IScrollingSettings,
+  NgVirtualScrollViewModule,
 } from '../../projects/ng-virtual-scroll-view/src/public-api';
 import { LOGO } from './const';
 import { GradientColor, RoundedCorner } from './components/interfaces';
 import { CustomScrollBarTheme } from './components/custom-scrollbar/interfaces/custom-scrollbar-theme';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CustomScrollbarModule } from './components/custom-scrollbar/custom-scrollbar.module';
 
 const X_LITE_BLUE_PLASMA_GRADIENT: GradientColor = ["rgba(133, 142, 255, 0)", "rgb(0, 133, 160)"],
@@ -38,9 +39,15 @@ const generateItems = (len: number = MAX_ITEMS) => {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, NgVirtualScrollViewModule, CustomScrollbarModule],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrls: ['./app.component.scss'],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NgVirtualScrollViewModule,
+    CustomScrollbarModule,
+  ],
+  standalone: true,
 })
 export class AppComponent {
   readonly logo = LOGO;

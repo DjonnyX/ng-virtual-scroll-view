@@ -1,6 +1,5 @@
-import { Component, computed, effect, ElementRef, input, output, Signal, signal, TemplateRef, viewChild, ViewChild } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { combineLatest, debounceTime, filter, from, Subject, tap } from 'rxjs';
+import { Component, ElementRef, EventEmitter, Input, Output, TemplateRef, ViewChild } from '@angular/core';
+import { BehaviorSubject, combineLatest, debounceTime, filter, from, of, Subject, takeUntil, tap } from 'rxjs';
 import { ScrollBox } from './utils';
 import { Id } from '../../types';
 import { NgScrollBarComponent } from "../ng-scroll-bar/ng-scroll-bar.component";
@@ -27,7 +26,7 @@ export const SCROLL_EVENT = new Event(SCROLLER_SCROLL);
  * The scroller for the NgVirtualScrollView item component
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/components/scroller/ng-scroller.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/17.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/ng-scroller.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -40,7 +39,7 @@ export const SCROLL_EVENT = new Event(SCROLLER_SCROLL);
   ],
   standalone: false,
   templateUrl: './ng-scroller.component.html',
-  styleUrl: './ng-scroller.component.scss'
+  styleUrls: ['./ng-scroller.component.scss'],
 })
 export class NgScrollerComponent extends NgScrollView {
   @ViewChild('scrollBarHorizontal', { read: NgScrollBarComponent })
@@ -49,62 +48,206 @@ export class NgScrollerComponent extends NgScrollView {
   @ViewChild('scrollBarVertical', { read: NgScrollBarComponent })
   readonly scrollBarVertical: NgScrollBarComponent | undefined;
 
-  readonly filter = viewChild<ElementRef<SVGFEGaussianBlurElement>>('filter');
+  @ViewChild('filter')
+  readonly filter: ElementRef<SVGFEGaussianBlurElement> | undefined;
 
-  readonly onScrollbarVisible = output<boolean>();
+  @Output()
+  readonly onScrollbarVisible = new EventEmitter<boolean>();
 
-  readonly scrollbarEnabled = input<boolean>(DEFAULT_SCROLLBAR_ENABLED);
+  private _$scrollbarEnabled = new BehaviorSubject<boolean>(DEFAULT_SCROLLBAR_ENABLED);
+  readonly $scrollbarEnabled = this._$scrollbarEnabled.asObservable();
 
-  readonly scrollbarInteractive = input<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE);
+  @Input()
+  set scrollbarEnabled(v: boolean) {
+    if (this._$scrollbarEnabled.getValue() !== v) {
+      this._$scrollbarEnabled.next(v);
+    }
+  }
+  get scrollbarEnabled() { return this._$scrollbarEnabled.getValue(); }
 
-  readonly focusedElement = input<Id | null>(null);
+  private _$scrollbarInteractive = new BehaviorSubject<boolean>(DEFAULT_SCROLLBAR_INTERACTIVE);
+  readonly $scrollbarInteractive = this._$scrollbarInteractive.asObservable();
 
-  readonly overlappingScrollbar = input<boolean>(DEFAULT_OVERLAPPING_SCROLLBAR);
+  @Input()
+  set scrollbarInteractive(v: boolean) {
+    if (this._$scrollbarInteractive.getValue() !== v) {
+      this._$scrollbarInteractive.next(v);
+    }
+  }
+  get scrollbarInteractive() { return this._$scrollbarInteractive.getValue(); }
 
-  readonly content = input<HTMLElement>();
+  private _$focusedElement = new BehaviorSubject<Id | undefined>(undefined);
+  readonly $focusedElement = this._$focusedElement.asObservable();
 
-  readonly loading = input<boolean>(false);
+  @Input()
+  set focusedElement(v: Id | undefined) {
+    if (this._$focusedElement.getValue() !== v) {
+      this._$focusedElement.next(v);
+    }
+  }
+  get focusedElement() { return this._$focusedElement.getValue(); }
 
-  readonly classes = input<{ [cName: string]: boolean }>({});
+  private _$overlappingScrollbar = new BehaviorSubject<boolean>(DEFAULT_OVERLAPPING_SCROLLBAR);
+  readonly $overlappingScrollbar = this._$overlappingScrollbar.asObservable();
 
-  readonly scrollbarMinSize = input<number>(DEFAULT_SCROLLBAR_MIN_SIZE);
+  @Input()
+  set overlappingScrollbar(v: boolean) {
+    if (this._$overlappingScrollbar.getValue() !== v) {
+      this._$overlappingScrollbar.next(v);
+    }
+  }
+  get overlappingScrollbar() { return this._$overlappingScrollbar.getValue(); }
 
-  readonly scrollbarThickness = input<number>(DEFAULT_SCROLLBAR_THICKNESS);
+  private _$content = new BehaviorSubject<HTMLElement | undefined>(undefined);
+  readonly $content = this._$focusedElement.asObservable();
 
-  readonly scrollbarThumbRenderer = input<TemplateRef<any> | null>(null);
+  @Input()
+  set content(v: HTMLElement | undefined) {
+    if (this._$content.getValue() !== v) {
+      this._$content.next(v);
+    }
+  }
+  get content() { return this._$content.getValue(); }
 
-  readonly scrollbarThumbParams = input<{ [propName: string]: any } | null>(null);
+  private _$loading = new BehaviorSubject<boolean>(false);
+  readonly $loading = this._$loading.asObservable();
 
-  readonly motionBlur = input<number | 'disabled'>(DEFAULT_MOTION_BLUR);
+  @Input()
+  set loading(v: boolean) {
+    if (this._$loading.getValue() !== v) {
+      this._$loading.next(v);
+    }
+  }
+  get loading() { return this._$loading.getValue(); }
 
-  readonly maxMotionBlur = input<number>(DEFAULT_MAX_MOTION_BLUR);
+  private _$classes = new BehaviorSubject<{ [cName: string]: boolean }>({});
+  readonly $classes = this._$classes.asObservable();
 
-  readonly motionBlurEnabled = input<boolean>(DEFAULT_MOTION_BLUR_ENABLED);
+  @Input()
+  set classes(v: { [cName: string]: boolean }) {
+    if (this._$classes.getValue() !== v) {
+      this._$classes.next(v);
+    }
+  }
+  get classes() { return this._$classes.getValue(); }
 
-  public readonly actualClasses: Signal<{ [cName: string]: boolean }>;
+  private _$scrollbarMinSize = new BehaviorSubject<number>(DEFAULT_SCROLLBAR_MIN_SIZE);
+  readonly $scrollbarMinSize = this._$scrollbarMinSize.asObservable();
 
-  public readonly containerClasses: Signal<{ [cName: string]: boolean }>;
+  @Input()
+  set scrollbarMinSize(v: number) {
+    if (this._$scrollbarMinSize.getValue() !== v) {
+      this._$scrollbarMinSize.next(v);
+    }
+  }
+  get scrollbarMinSize() { return this._$scrollbarMinSize.getValue(); }
 
-  public readonly thumbGradientPositionsHorizontal = signal<GradientColorPositions>([0, 0]);
+  private _$scrollbarThickness = new BehaviorSubject<number>(DEFAULT_SCROLLBAR_THICKNESS);
+  readonly $scrollbarThickness = this._$scrollbarThickness.asObservable();
 
-  public readonly thumbGradientPositionsVertical = signal<GradientColorPositions>([0, 0]);
+  @Input()
+  set scrollbarThickness(v: number) {
+    if (this._$scrollbarThickness.getValue() !== v) {
+      this._$scrollbarThickness.next(v);
+    }
+  }
+  get scrollbarThickness() { return this._$scrollbarThickness.getValue(); }
 
-  public readonly thumbSizeVertical = signal<number>(0);
+  private _$scrollbarThumbRenderer = new BehaviorSubject<TemplateRef<any> | null>(null);
+  readonly $scrollbarThumbRenderer = this._$scrollbarThumbRenderer.asObservable();
 
-  public readonly thumbSizeHorizontal = signal<number>(0);
+  @Input()
+  set scrollbarThumbRenderer(v: TemplateRef<any> | null) {
+    if (this._$scrollbarThumbRenderer.getValue() !== v) {
+      this._$scrollbarThumbRenderer.next(v);
+    }
+  }
+  get scrollbarThumbRenderer() { return this._$scrollbarThumbRenderer.getValue(); }
 
-  public readonly scrollbarHorizontalEnabled = signal<boolean>(this.scrollableX);
+  private _$scrollbarThumbParams = new BehaviorSubject<{ [propName: string]: any } | null>(null);
+  readonly $scrollbarThumbParams = this._$scrollbarThumbParams.asObservable();
 
-  public readonly scrollbarVerticalEnabled = signal<boolean>(this.scrollableY);
+  @Input()
+  set scrollbarThumbParams(v: { [propName: string]: any } | null) {
+    if (this._$scrollbarThumbParams.getValue() !== v) {
+      this._$scrollbarThumbParams.next(v);
+    }
+  }
+  get scrollbarThumbParams() { return this._$scrollbarThumbParams.getValue(); }
 
-  public readonly preparedSignal = signal<boolean>(false);
+  private _$motionBlur = new BehaviorSubject<number | 'disabled'>(DEFAULT_MOTION_BLUR);
+  readonly $motionBlur = this._$motionBlur.asObservable();
 
-  public readonly listStyles = signal<{ perspectiveOrigin: string }>({ perspectiveOrigin: 'center' });
+  @Input()
+  set motionBlur(v: number | 'disabled') {
+    if (this._$motionBlur.getValue() !== v) {
+      this._$motionBlur.next(v);
+    }
+  }
+  get motionBlur() { return this._$motionBlur.getValue(); }
+
+  private _$maxMotionBlur = new BehaviorSubject<number>(DEFAULT_MAX_MOTION_BLUR);
+  readonly $maxMotionBlur = this._$maxMotionBlur.asObservable();
+
+  @Input()
+  set maxMotionBlur(v: number) {
+    if (this._$maxMotionBlur.getValue() !== v) {
+      this._$maxMotionBlur.next(v);
+    }
+  }
+  get maxMotionBlur() { return this._$maxMotionBlur.getValue(); }
+
+  private _$motionBlurEnabled = new BehaviorSubject<boolean>(DEFAULT_MOTION_BLUR_ENABLED);
+  readonly $motionBlurEnabled = this._$motionBlurEnabled.asObservable();
+
+  @Input()
+  set motionBlurEnabled(v: boolean) {
+    if (this._$motionBlurEnabled.getValue() !== v) {
+      this._$motionBlurEnabled.next(v);
+    }
+  }
+  get motionBlurEnabled() { return this._$motionBlurEnabled.getValue(); }
+
+  private _$actualClasses = new BehaviorSubject<{ [cName: string]: boolean }>({});
+  readonly $actualClasses = this._$actualClasses.asObservable();
+
+  private _$containerClasses = new BehaviorSubject<{ [cName: string]: boolean }>({});
+  readonly $containerClasses = this._$containerClasses.asObservable();
+
+  private _$thumbGradientPositionsHorizontal = new BehaviorSubject<GradientColorPositions>([0, 0]);
+  readonly $thumbGradientPositionsHorizontal = this._$thumbGradientPositionsHorizontal.asObservable();
+
+  private _$thumbGradientPositionsVertical = new BehaviorSubject<GradientColorPositions>([0, 0]);
+  readonly $thumbGradientPositionsVertical = this._$thumbGradientPositionsVertical.asObservable();
+
+  private _$thumbSizeVertical = new BehaviorSubject<number>(0);
+  readonly $thumbSizeVertical = this._$thumbSizeVertical.asObservable();
+
+  private _$thumbSizeHorizontal = new BehaviorSubject<number>(0);
+  readonly $thumbSizeHorizontal = this._$thumbSizeHorizontal.asObservable();
+
+  private _$scrollbarHorizontalEnabled = new BehaviorSubject<boolean>(this.scrollableX);
+  readonly $scrollbarHorizontalEnabled = this._$scrollbarHorizontalEnabled.asObservable();
+
+  private _$scrollbarVerticalEnabled = new BehaviorSubject<boolean>(this.scrollableY);
+  readonly $scrollbarVerticalEnabled = this._$scrollbarVerticalEnabled.asObservable();
+
+  private _$preparedSignal = new BehaviorSubject<boolean>(false);
+  readonly $preparedSignal = this._$preparedSignal.asObservable();
+
+  private _$listStyles = new BehaviorSubject<{ perspectiveOrigin: string }>({ perspectiveOrigin: 'center' });
+  readonly $listStyles = this._$listStyles.asObservable();
+
+  private _$scrollbarHorizontalShow = new BehaviorSubject<boolean>(false);
+  readonly $scrollbarHorizontalShow = this._$scrollbarHorizontalShow.asObservable();
+
+  private _$scrollbarVerticalShow = new BehaviorSubject<boolean>(false);
+  readonly $scrollbarVerticalShow = this._$scrollbarVerticalShow.asObservable();
 
   private _scrollBox = new ScrollBox();
 
   get host() {
-    return this.scrollViewport()?.nativeElement;
+    return this.scrollViewport?.nativeElement;
   }
 
   private _$scrollbarScroll = new Subject<boolean>();
@@ -114,7 +257,7 @@ export class NgScrollerComponent extends NgScrollView {
   set prepared(v: boolean) {
     if (this._prepared !== v) {
       this._prepared = v;
-      this.preparedSignal.set(v);
+      this._$preparedSignal.next(v);
     }
   }
 
@@ -188,7 +331,8 @@ export class NgScrollerComponent extends NgScrollView {
   }
   override get startLayoutOffsetY() { return this._startLayoutOffsetY; }
 
-  readonly viewInitialized = signal<boolean>(false);
+  private _$viewInitialized = new BehaviorSubject<boolean>(false);
+  readonly $viewInitialized = this._$viewInitialized.asObservable();
 
   private _isScrollbarUserActionX: boolean = false;
   get isScrollbarUserActionX() {
@@ -215,15 +359,20 @@ export class NgScrollerComponent extends NgScrollView {
 
     this._filterId = `${this._service.id}-${MOTION_BLUR}`;
     this._filter = `url(#${this._filterId})`;
+  }
 
-    const $filter = toObservable(this.filter),
-      $motionBlur = toObservable(this.motionBlur),
-      $maxMotionBlur = toObservable(this.maxMotionBlur),
-      $motionBlurEnabled = toObservable(this.motionBlurEnabled);
+  override ngAfterViewInit(): void {
+    super.ngAfterViewInit();
+
+    const $filter = of(this.filter),
+      $motionBlur = this.$motionBlur,
+      $maxMotionBlur = this.$maxMotionBlur,
+      $motionBlurEnabled = this.$motionBlurEnabled,
+      $isVertical = this.$isVertical;
 
     const $scrollbarScroll = this.$scrollbarScroll;
     $scrollbarScroll.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       debounceTime(50),
       tap(() => {
         this.dropVelocity();
@@ -234,7 +383,7 @@ export class NgScrollerComponent extends NgScrollView {
     const $averageVelocityX = this.$averageVelocityX,
       $averageVelocityY = this.$averageVelocityY;
     combineLatest([$averageVelocityX, $averageVelocityY, $filter, $motionBlurEnabled, $motionBlur, $maxMotionBlur]).pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(([, , , f, e, mb]) => !!f && (!!e && mb !== 0)),
       tap(([x, y, filter, , mb, mbMax]) => {
         const _x = x * (mb as number), valueX = _x > mbMax ? mbMax : _x,
@@ -247,9 +396,9 @@ export class NgScrollerComponent extends NgScrollView {
       }),
     ).subscribe();
 
-    const $prepare = toObservable(this.preparedSignal);
+    const $prepare = this.$preparedSignal;
     $prepare.pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       filter(v => !!v),
       tap(() => {
         this.updateScrollBarHandler(false, true, false, true);
@@ -257,16 +406,30 @@ export class NgScrollerComponent extends NgScrollView {
       }),
     ).subscribe();
 
-    const $leftOffset = toObservable(this.leftOffset),
-      $rightOffset = toObservable(this.rightOffset),
-      $topOffset = toObservable(this.topOffset),
-      $bottomOffset = toObservable(this.bottomOffset),
-      $scrollbarMinSize = toObservable(this.scrollbarMinSize),
-      $thumbSizeHorizontal = toObservable(this.thumbSizeHorizontal),
-      $thumbSizeVertical = toObservable(this.thumbSizeVertical);
+    combineLatest([this.$scrollbarHorizontalEnabled, this.$scrollbarEnabled, this.$preparedSignal]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([scrollbarHorizontalEnabled, scrollbarEnabled, prepared]) => {
+        this._$scrollbarHorizontalShow.next(scrollbarHorizontalEnabled && scrollbarEnabled && prepared);
+      }),
+    ).subscribe();
+
+    combineLatest([this.$scrollbarVerticalEnabled, this.$scrollbarEnabled, this.$preparedSignal]).pipe(
+      takeUntil(this._$unsubscribe),
+      tap(([scrollbarVerticalEnabled, scrollbarEnabled, prepared]) => {
+        this._$scrollbarVerticalShow.next(scrollbarVerticalEnabled && scrollbarEnabled && prepared);
+      }),
+    ).subscribe();
+
+    const $leftOffset = this.$leftOffset,
+      $rightOffset = this.$rightOffset,
+      $topOffset = this.$topOffset,
+      $bottomOffset = this.$bottomOffset,
+      $scrollbarMinSize = this.$scrollbarMinSize,
+      $thumbSizeHorizontal = this.$thumbSizeHorizontal,
+      $thumbSizeVertical = this.$thumbSizeVertical;
 
     from([$rightOffset, $leftOffset, $thumbSizeHorizontal, $scrollbarMinSize]).pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       debounceTime(0),
       tap(() => {
         this.updateScrollBar(false);
@@ -274,7 +437,7 @@ export class NgScrollerComponent extends NgScrollView {
     ).subscribe();
 
     from([$bottomOffset, $topOffset, $thumbSizeVertical, $scrollbarMinSize]).pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       debounceTime(0),
       tap(() => {
         this.updateScrollBar(true);
@@ -285,7 +448,7 @@ export class NgScrollerComponent extends NgScrollView {
       $updateScrollBarVertical = this.$updateScrollBarVertical;
 
     $updateScrollBarHorizontal.pipe(
-      takeUntilDestroyed(this._destroyRef),
+      takeUntil(this._$unsubscribe),
       debounceTime(0),
       tap(() => {
         this.updateScrollBarHandler(false, !this._isScrollbarUserActionX);
@@ -293,65 +456,76 @@ export class NgScrollerComponent extends NgScrollView {
     ).subscribe();
 
     $updateScrollBarVertical.pipe(
-      takeUntilDestroyed(this._destroyRef),
+      takeUntil(this._$unsubscribe),
       debounceTime(0),
       tap(() => {
         this.updateScrollBarHandler(true, !this._isScrollbarUserActionY);
       }),
     ).subscribe();
 
-    effect(() => {
-      const grabbing = this.grabbing();
-      this._service.grabbing = grabbing;
-    });
+    const $grabbing = this.$grabbing;
+    $grabbing.pipe(
+      takeUntil(this._$unsubscribe),
+      tap(v => {
+        this._service.grabbing = v;
+      }),
+    ).subscribe();
 
-    this.actualClasses = computed(() => {
-      const classes = this.classes(), direction = this.direction(), filtered = this.motionBlurEnabled();
-      return { ...classes, [direction]: true, grabbing: this.grabbing(), filtered };
-    });
+    combineLatest([this.$classes, this.$direction, this.$grabbing, this.$motionBlurEnabled, this.$preparedSignal]).pipe(
+      takeUntil(this._$unsubscribe),
+      debounceTime(0),
+      tap(([classes, direction, grabbing, filtered, prepared]) => {
+        this._$actualClasses.next({ ...classes, [direction]: true, grabbing, filtered, prepared });
+      }),
+    ).subscribe();
 
-    this.containerClasses = computed(() => {
-      const { width: contentWidth, height: contentHeight } = this.contentBounds(),
-        scrollEnabled = this.scrollable(),
-        { width, height } = this.viewportBounds(),
-        overlappingScrollbar = this.overlappingScrollbar(),
-        viewportWidth = width,
-        viewportHeight = height,
-        scrollableX = contentWidth > viewportWidth,
-        scrollableY = contentHeight > viewportHeight,
-        scrollable = scrollEnabled && (scrollableX || scrollableY);
-      return {
-        [this.direction()]: true, grabbing: this.grabbing(), enabled: this.scrollbarEnabled(),
-        scrollable, scrollableX, scrollableY, overlapping: overlappingScrollbar,
-      };
-    });
+    combineLatest([
+      this.$contentBounds, this.$viewportBounds, this.$direction, this.$grabbing, this.$scrollbarEnabled, this.$scrollable,
+      this.$overlappingScrollbar,
+    ]).pipe(
+      takeUntil(this._$unsubscribe),
+      debounceTime(0),
+      tap(([contentBounds, viewportBounds, direction, grabbing, scrollbarEnabled, scrollEnabled, overlappingScrollbar]) => {
+        const { width: contentWidth, height: contentHeight } = contentBounds,
+          { width, height } = viewportBounds,
+          viewportWidth = width,
+          viewportHeight = height,
+          scrollableX = contentWidth > viewportWidth,
+          scrollableY = contentHeight > viewportHeight,
+          scrollable = scrollEnabled && (scrollableX || scrollableY);
+        this._$containerClasses.next({ [direction]: true, grabbing, enabled: scrollbarEnabled, scrollable, scrollableX, scrollableY, overlapping: overlappingScrollbar });
+      }),
+    ).subscribe();
 
-    effect(() => {
-      const viewInitialized = this.viewInitialized();
-      if (viewInitialized) {
+    this.$viewInitialized.pipe(
+      takeUntil(this._$unsubscribe),
+      filter(v => !!v),
+      tap(() => {
         this.updateScrollBarHandler(false);
         this.updateScrollBarHandler(true);
-      }
-    });
+      }),
+    ).subscribe();
+
+    this._$viewInitialized.next(true);
   }
 
   private recalculatePerspective() {
     const scrollWidth = this.scrollLeft - this._startLayoutOffsetX,
       scrollHeight = this.scrollTop - this._startLayoutOffsetX,
-      { width, height } = this.viewportBounds();
-    this.listStyles.set({
+      { width, height } = this._$viewportBounds.getValue();
+    this._$listStyles.next({
       perspectiveOrigin: `${scrollWidth + width * .5}${PX} ${scrollHeight + height * .5}${PX}`
     });
   }
 
   protected override onResizeViewport() {
-    const viewport = this.scrollViewport()?.nativeElement;
+    const viewport = this.scrollViewport?.nativeElement;
     if (!!viewport) {
-      const bounds: ISize = { width: viewport.offsetWidth, height: viewport.offsetHeight }, b = this.viewportBounds();
+      const bounds: ISize = { width: viewport.offsetWidth, height: viewport.offsetHeight }, b = this._$viewportBounds.getValue();
       if (bounds.width === b.width && bounds.height === b.height) {
         return;
       }
-      this.viewportBounds.set(bounds);
+      this._$viewportBounds.next(bounds);
       this.updateScrollBar(false);
       this.updateScrollBar(true);
       this._$resizeViewport.next(bounds);
@@ -359,16 +533,16 @@ export class NgScrollerComponent extends NgScrollView {
   }
 
   protected override onResizeContent(width: number | null = null, height: number | null = null) {
-    const content = this.scrollContent()?.nativeElement;
+    const content = this.scrollContent?.nativeElement;
     if (!!content) {
       const bounds: ISize = {
         width: width ?? content.offsetWidth,
         height: height ?? content.offsetHeight,
-      }, b = this.contentBounds();
+      }, b = this._$contentBounds.getValue();
       if (width === null && height === null && bounds.width === b.width && bounds.height === b.height) {
         return;
       }
-      this.contentBounds.set(bounds);
+      this._$contentBounds.next(bounds);
       this.updateScrollBar(false);
       this.updateScrollBar(true);
       this._$resizeContent.next(bounds);
@@ -376,14 +550,14 @@ export class NgScrollerComponent extends NgScrollView {
   }
 
   private updateScrollBarHandler(isVertical: boolean, update: boolean = false, blending: boolean = true, fireUpdate: boolean = false) {
-    const viewportBounds = this.viewportBounds(),
-      direction = this.direction(),
+    const viewportBounds = this._$viewportBounds.getValue(),
+      direction = this._$direction.getValue(),
       horizontalEnabled = direction === ScrollerDirection.BOTH || direction === ScrollerDirection.HORIZONTAL,
       verticalEnabled = direction === ScrollerDirection.BOTH || direction === ScrollerDirection.VERTICAL;
     if ((isVertical && verticalEnabled) || (!isVertical && horizontalEnabled)) {
-      const contentBounds = this.contentBounds(),
-        startOffset = isVertical ? this.topOffset() : this.leftOffset(),
-        endOffset = isVertical ? this.bottomOffset() : this.rightOffset(),
+      const contentBounds = this._$contentBounds.getValue(),
+        startOffset = isVertical ? this.topOffset : this.leftOffset,
+        endOffset = isVertical ? this.bottomOffset : this.rightOffset,
         {
           thumbSize,
           thumbPosition,
@@ -398,15 +572,15 @@ export class NgScrollerComponent extends NgScrollView {
           endOffset,
           positionX: this._x,
           positionY: this._y,
-          minSize: this.scrollbarMinSize(),
+          minSize: this.scrollbarMinSize,
         });
 
       if (isVertical) {
-        this.thumbGradientPositionsVertical.set(thumbGradientPositions);
-        this.thumbSizeVertical.set(thumbSize);
+        this._$thumbGradientPositionsVertical.next(thumbGradientPositions);
+        this._$thumbSizeVertical.next(thumbSize);
       } else {
-        this.thumbGradientPositionsHorizontal.set(thumbGradientPositions);
-        this.thumbSizeHorizontal.set(thumbSize);
+        this._$thumbGradientPositionsHorizontal.next(thumbGradientPositions);
+        this._$thumbSizeHorizontal.next(thumbSize);
       }
       const actualThumbPosition = thumbPosition < startOffset ? startOffset : thumbPosition;
       if (update) {
@@ -418,15 +592,11 @@ export class NgScrollerComponent extends NgScrollView {
     }
 
     if (isVertical) {
-      this.scrollbarVerticalEnabled.set(verticalEnabled && this.scrollableY && this.scrollbarEnabled());
+      this._$scrollbarVerticalEnabled.next(verticalEnabled && this.scrollableY && this.scrollbarEnabled);
     } else {
-      this.scrollbarHorizontalEnabled.set(horizontalEnabled && this.scrollableX && this.scrollbarEnabled());
+      this._$scrollbarHorizontalEnabled.next(horizontalEnabled && this.scrollableX && this.scrollbarEnabled);
     }
   };
-
-  ngAfterViewInit() {
-    this.viewInitialized.set(true);
-  }
 
   override tick() {
     super.tick();
@@ -630,5 +800,9 @@ export class NgScrollerComponent extends NgScrollView {
       }
     }
     return false;
+  }
+
+  override ngOnDestroy(): void {
+    super.ngOnDestroy();
   }
 }

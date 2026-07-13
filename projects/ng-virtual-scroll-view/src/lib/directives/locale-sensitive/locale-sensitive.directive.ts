@@ -1,10 +1,9 @@
-import { Directive, ElementRef, inject, input } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { combineLatest, tap } from 'rxjs';
+import { Directive, ElementRef, Input, OnDestroy } from '@angular/core';
+import { BehaviorSubject, combineLatest, Subject, takeUntil, tap } from 'rxjs';
 import { TextDirections } from '../../enums';
 import { TextDirection } from '../../types';
-import { ScrollerDirection, ScrollerDirections } from '../../components/ng-scroll-view/enums';
 import { LEFT } from '../../const';
+import { ScrollerDirection, ScrollerDirections } from '../../components/ng-scroll-view/enums';
 
 const RIGHT = 'right',
   DIR = 'dir';
@@ -13,7 +12,7 @@ const RIGHT = 'right',
  * LocaleSensitiveDirective
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/directives/locale-sensitive/locale-sensitive.directive.ts
+ * @link https://github.com/DjonnyX/ng-virtual-list/blob/17.x/projects/ng-virtual-list/src/lib/directives/locale-sensitive/locale-sensitive.directive.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -21,19 +20,34 @@ const RIGHT = 'right',
   selector: '[localeSensitive]',
   standalone: false,
 })
-export class LocaleSensitiveDirective {
-  langTextDir = input<TextDirection>(TextDirections.LTR);
+export class LocaleSensitiveDirective implements OnDestroy {
+  protected _$unsubscribe = new Subject<void>();
 
-  listDir = input<ScrollerDirections>(ScrollerDirection.VERTICAL);
+  private _$langTextDir = new BehaviorSubject<TextDirection>(TextDirections.LTR);
+  readonly $langTextDir = this._$langTextDir.asObservable();
 
-  private _elementRef = inject(ElementRef<HTMLElement>);
+  @Input()
+  set langTextDir(v: TextDirection) {
+    this._$langTextDir.next(v);
+  }
+  get langTextDir() { return this._$langTextDir.getValue(); }
 
-  constructor() {
-    const $langTextDir = toObservable(this.langTextDir),
-      $listDir = toObservable(this.listDir);
+
+  private _$listDir = new BehaviorSubject<ScrollerDirections | null>(ScrollerDirection.VERTICAL);
+  readonly $listDir = this._$listDir.asObservable();
+
+  @Input()
+  set listDir(v: ScrollerDirections | null) {
+    this._$listDir.next(v);
+  }
+  get listDir() { return this._$listDir.getValue(); }
+
+  constructor(private _elementRef: ElementRef<HTMLElement>) {
+    const $langTextDir = this.$langTextDir,
+      $listDir = this.$listDir;
 
     combineLatest([$langTextDir, $listDir]).pipe(
-      takeUntilDestroyed(),
+      takeUntil(this._$unsubscribe),
       tap(([dir, listDir]) => {
         const element = this._elementRef.nativeElement as HTMLElement;
         element.setAttribute(DIR, dir);
@@ -48,5 +62,12 @@ export class LocaleSensitiveDirective {
         }
       }),
     ).subscribe();
+  }
+
+  ngOnDestroy(): void {
+    if (this._$unsubscribe) {
+      this._$unsubscribe.next();
+      this._$unsubscribe.complete();
+    }
   }
 }

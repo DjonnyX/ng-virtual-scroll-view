@@ -4,7 +4,7 @@ import { TextDirections } from "../enums/text-directions";
  * TextDirection.
  * 'rtl' - right-to-left.
  * 'ltr' - left-to-right.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/main/projects/ng-virtual-scroll-view/src/lib/enums/text-direction.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/17.x/projects/ng-virtual-scroll-view/src/lib/enums/text-direction.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */

@@ -1,6 +1,6 @@
 /**
  * matrix3d
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/main/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/matrix-3d.ts
+ * @link https://github.com/DjonnyX/ng-virtual-grid/blob/17.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/utils/matrix-3d.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
