@@ -19,9 +19,9 @@
     "scroll-view"
   ],
   "peerDependencies": {
-    "@angular/cdk": "^20.0.4",
-    "@angular/common": "^20.0.4",
-    "@angular/core": "^20.0.4"
+    "@angular/cdk": "^14.2.0",
+    "@angular/common": "^14.2.0",
+    "@angular/core": "^14.2.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"
