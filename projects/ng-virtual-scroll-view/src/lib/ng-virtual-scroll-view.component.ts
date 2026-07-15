@@ -1482,6 +1482,23 @@ export class NgVirtualScrollViewComponent extends DisposableComponent implements
       }),
     ).subscribe();
 
+    $viewInit.pipe(
+      takeUntil(this._$unsubscribe),
+      filter(v => !!v),
+      switchMap(() => {
+        return combineLatest([
+          $alignment, $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollRightOffset, $bounds, $precalculatedScrollLeftOffset,
+          $precalculatedScrollRightOffset, $precalculatedScrollTopOffset, $precalculatedScrollBottomOffset, $isInfinity,
+        ]).pipe(
+          takeUntil(this._$unsubscribe),
+          tap(() => {
+            this.updateOffsetsByAllignment();
+            this._scrollerComponent?.refreshScrollbar();
+          }),
+        );
+      }),
+    ).subscribe();
+
     const $snapScrollToLeft = this.$actualSnapScrollToLeft,
       $snapScrollToRight = this.$actualSnapScrollToRight,
       $snapScrollToTop = this.$actualSnapScrollToTop,
