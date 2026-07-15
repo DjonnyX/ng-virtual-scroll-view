@@ -942,7 +942,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     this._service.$tick.pipe(
       takeUntilDestroyed(),
       tap(() => {
-        // this.checkBoundsOfElements();
         this._scrollerComponent()?.tick();
       }),
     ).subscribe();
@@ -1059,6 +1058,23 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       takeUntilDestroyed(),
       tap(userAction => {
         hasUserAction = userAction;
+      }),
+    ).subscribe();
+
+    $viewInit.pipe(
+      takeUntilDestroyed(),
+      filter(v => !!v),
+      switchMap(() => {
+        return combineLatest([
+          $alignment, $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollRightOffset, $bounds, $precalculatedScrollLeftOffset,
+          $precalculatedScrollRightOffset, $precalculatedScrollTopOffset, $precalculatedScrollBottomOffset, $isInfinity,
+        ]).pipe(
+          takeUntilDestroyed(this._destroyRef),
+          tap(() => {
+            this.updateOffsetsByAllignment();
+            this._scrollerComponent()?.refreshScrollbar();
+          }),
+        );
       }),
     ).subscribe();
 
