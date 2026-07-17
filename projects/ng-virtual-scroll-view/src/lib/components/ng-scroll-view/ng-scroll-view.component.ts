@@ -766,18 +766,22 @@ export class NgScrollView extends BaseScrollView {
         const positionX = this._x,
             positionY = this._y;
         if (!this.isInfinity) {
+            let reseted = false;
             if (this._$horizontalAxisEnabled.getValue() && (positionX <= 0 || positionX >= this.scrollWidth)) {
                 this._velocitiesX = [0];
                 this._$averageVelocityX.next(0);
                 this._measureVelocityLastPositionX = positionX;
                 this._measureVelocityTimestampX = time;
-                return;
+                reseted = true;
             }
             if (this._$verticalAxisEnabled.getValue() && (positionY <= 0 || positionY >= this.scrollHeight)) {
                 this._velocitiesY = [0];
                 this._$averageVelocityY.next(0);
                 this._measureVelocityLastPositionY = positionY;
                 this._measureVelocityTimestampY = time;
+                reseted = true;
+            }
+            if (reseted) {
                 return;
             }
         }
