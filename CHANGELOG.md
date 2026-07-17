@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [22.12.7] - 2026-07-17
+
+### Fix
+- Fixed bugs with motion blur.
+
 ## [20.12.5] - 2026-07-13
 
 ### Add
