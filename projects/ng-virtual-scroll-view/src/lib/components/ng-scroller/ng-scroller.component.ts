@@ -439,6 +439,20 @@ export class NgScrollerComponent extends NgScrollView {
     (isVertical ? this._$updateScrollBarVertical : this._$updateScrollBarHorizontal).next();
   }
 
+  protected override normalizeScrollWidth() {
+    const result = super.normalizeScrollWidth();
+    this.scrollLimits();
+    this.measureVelocity();
+    return result;
+  }
+
+  protected override normalizeScrollHeight() {
+    const result = super.normalizeScrollHeight();
+    this.scrollLimits();
+    this.measureVelocity();
+    return result;
+  }
+
   refreshScrollbar() {
     this.updateScrollBarHandler(true, true, false, false);
     this.updateScrollBarHandler(false, true, false, false);
