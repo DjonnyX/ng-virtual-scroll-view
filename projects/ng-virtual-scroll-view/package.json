@@ -1,12 +1,12 @@
 {
   "name": "ng-virtual-scroll-view",
-  "version": "18.12.6",
+  "version": "18.12.7",
   "author": {
     "name": "Evgenii Alexandrovich Grebennikov",
     "email": "djonnyx@gmail.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/DjonnyX/ng-virtual-scroll-view/tree/20.x/projects/ng-virtual-scroll-view",
+  "homepage": "https://github.com/DjonnyX/ng-virtual-scroll-view/tree/18.x/projects/ng-virtual-scroll-view",
   "keywords": [
     "ng",
     "angular",
