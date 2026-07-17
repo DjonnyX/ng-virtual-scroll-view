@@ -26,7 +26,7 @@ export const SCROLL_EVENT = new Event(SCROLLER_SCROLL);
  * The scroller for the NgVirtualScrollView item component
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/15.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/ng-scroller.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/scroller/ng-scroller.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -608,6 +608,21 @@ export class NgScrollerComponent extends NgScrollView {
   private updateScrollBar(isVertical: boolean) {
     (isVertical ? this._$updateScrollBarVertical : this._$updateScrollBarHorizontal).next();
   }
+
+  protected override normalizeScrollWidth() {
+    const result = super.normalizeScrollWidth();
+    this.scrollLimits();
+    this.measureVelocity();
+    return result;
+  }
+
+  protected override normalizeScrollHeight() {
+    const result = super.normalizeScrollHeight();
+    this.scrollLimits();
+    this.measureVelocity();
+    return result;
+  }
+
 
   refreshScrollbar() {
     this.updateScrollBarHandler(true, true, false, false);
