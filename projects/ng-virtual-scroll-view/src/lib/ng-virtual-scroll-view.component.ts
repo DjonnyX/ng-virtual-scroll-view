@@ -1763,6 +1763,10 @@ export class NgVirtualScrollViewComponent extends DisposableComponent implements
                 const roundedMaxPositionAfterUpdateX = scroller.actualScrollWidth,
                   roundedMaxPositionAfterUpdateY = scroller.actualScrollHeight;
 
+                if (!scroller.grabbing) {
+                  return;
+                }
+
                 let toStart = false,
                   toEnd = false;
 
