@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [17.12.8] - 2026-07-19
+
+### Fix
+- Animation and scrolling defects have been fixed.
+
 ## [17.12.7] - 2026-07-17
 
 ### Fix

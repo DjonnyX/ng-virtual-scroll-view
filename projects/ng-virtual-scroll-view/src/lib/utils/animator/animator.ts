@@ -4,7 +4,7 @@ import { IAnimatorParams, IAnimatorUpdateData } from './interfaces';
 
 /**
  * Animator
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/17.x/library/src/utils/animator/animator.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/17.x/projects/ng-virtual-scroll-view/src/lib/utils/animator/animator.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -35,9 +35,13 @@ export class Animator {
   private _prevPos: number = 0;
 
   updateTo(end: number): boolean {
-    this._endValue = end;
-    this._diff = this._endValue - this._startValue;
-    return this.hasAnimation();
+    if (this.hasAnimation()) {
+      this._startValue = this._prevPos;
+      this._endValue = end;
+      this._diff = this._endValue - this._startValue;
+      return true;
+    }
+    return false;
   }
 
   animate(params: IAnimatorParams) {
@@ -92,6 +96,10 @@ export class Animator {
       prevTime = t;
       this._prevPos = currentValue;
 
+      if (isFinished) {
+        this._animationId = -1;
+      }
+
       if (onUpdate !== undefined) {
         const data: IAnimatorUpdateData = {
           id,
@@ -104,7 +112,6 @@ export class Animator {
       }
 
       if (isFinished) {
-        this._animationId = -1;
         if (onComplete !== undefined) {
           const data: IAnimatorUpdateData = {
             id,
@@ -125,8 +132,8 @@ export class Animator {
     return this._currentId;
   }
 
-  hasAnimation(...ids: Array<number>) {
-    if ((!!ids && ids.indexOf(this._currentId) > -1) && this.animated) {
+  hasAnimation(id: number = -1) {
+    if ((this._currentId === id || id === -1) && this.animated) {
       return true;
     }
     return false;

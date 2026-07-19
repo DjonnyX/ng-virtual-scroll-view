@@ -1,6 +1,6 @@
 /**
  * Easing
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/17.x/library/src/utils/animator/types/easing.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/17.x/projects/ng-virtual-scroll-view/src/lib/utils/animator/types/easing.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
