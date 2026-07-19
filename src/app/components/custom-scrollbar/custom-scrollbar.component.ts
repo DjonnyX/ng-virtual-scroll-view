@@ -11,7 +11,7 @@ import { DisposableComponent } from '../../../../projects/ng-virtual-scroll-view
  * ScrollBar component.
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-list/blob/14.x/src/app/components/custom-scrollbar/custom-scrollbar.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/src/app/components/custom-scrollbar/custom-scrollbar.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
