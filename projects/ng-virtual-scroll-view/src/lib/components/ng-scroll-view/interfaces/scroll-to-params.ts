@@ -2,7 +2,7 @@ import { Easing } from "../../../utils/animator";
 
 /**
  * IScrollToParams
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/16.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/interfaces/scroll-to-params.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/16.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/interfaces/scroll-to-params.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
