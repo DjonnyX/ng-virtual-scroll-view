@@ -1,6 +1,6 @@
 /**
  * ScrollerDirection
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/14.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/enums/scroller-direction.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/enums/scroller-direction.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
