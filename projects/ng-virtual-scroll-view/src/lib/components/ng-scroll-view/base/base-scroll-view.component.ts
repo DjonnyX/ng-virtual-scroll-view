@@ -13,7 +13,7 @@ import { DisposableComponent } from '../../../utils/disposable-component';
  * BaseScrollView
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-grid/blob/18.x/projects/ng-virtual-grid/src/lib/components/ng-scroll-view/base/base-scroll-view.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/base/base-scroll-view.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -143,6 +143,7 @@ export class BaseScrollView extends DisposableComponent {
 
     protected _$grabbing = new BehaviorSubject<boolean>(false);
     readonly $grabbing = this._$grabbing.asObservable();
+    get grabbing() { return this._$grabbing.getValue(); }
 
     protected _inversion = inject(SCROLL_VIEW_INVERSION);
 
