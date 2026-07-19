@@ -1337,6 +1337,10 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
                 const roundedMaxPositionAfterUpdateX = scroller.actualScrollWidth,
                   roundedMaxPositionAfterUpdateY = scroller.actualScrollHeight;
 
+                if (!scroller.grabbing()) {
+                  return;
+                }
+
                 let toStart = false,
                   toEnd = false;
 
