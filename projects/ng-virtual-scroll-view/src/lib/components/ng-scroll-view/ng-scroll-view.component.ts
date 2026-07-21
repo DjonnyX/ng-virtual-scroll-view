@@ -446,16 +446,18 @@ export class NgScrollView extends BaseScrollView {
                                 this._scrollDirectionValueX += Math.abs(scrollDeltaX);
                                 this._scrollDirectionValueY += Math.abs(scrollDeltaY);
                                 this.move(positionX, positionY, true, true, true);
-                                const offsetX = Math.abs(positionX) - Math.abs(this._x),
-                                    offsetY = Math.abs(positionY) - Math.abs(this._y),
-                                    scrollWidth = this.scrollWidth,
-                                    scrollHeight = this.scrollHeight,
-                                    { width: viewportWidth, height: viewportHeight } = this.viewportBounds();
-                                if (positionX >= (scrollWidth - viewportWidth * .5) || positionX <= 0) {
-                                    startClientPosX -= offsetX;
-                                }
-                                if (positionY >= (scrollHeight - viewportHeight * .5) || positionY <= 0) {
-                                    startClientPosY -= offsetY;
+                                if (this.isInfinity()) {
+                                    const offsetX = Math.abs(positionX) - Math.abs(this._x),
+                                        offsetY = Math.abs(positionY) - Math.abs(this._y),
+                                        scrollWidth = this.scrollWidth,
+                                        scrollHeight = this.scrollHeight,
+                                        { width: viewportWidth, height: viewportHeight } = this.viewportBounds();
+                                    if (positionX >= (scrollWidth - viewportWidth * .5) || positionX <= 0) {
+                                        startClientPosX -= offsetX;
+                                    }
+                                    if (positionY >= (scrollHeight - viewportHeight * .5) || positionY <= 0) {
+                                        startClientPosY -= offsetY;
+                                    }
                                 }
                                 startTimeX = endTimeX;
                                 startTimeY = endTimeY;
@@ -603,16 +605,18 @@ export class NgScrollView extends BaseScrollView {
                                 this._scrollDirectionValueX += Math.abs(scrollDeltaX);
                                 this._scrollDirectionValueY += Math.abs(scrollDeltaY);
                                 this.move(positionX, positionY, true, true, true);
-                                const offsetX = Math.abs(positionX) - Math.abs(this._x),
-                                    offsetY = Math.abs(positionY) - Math.abs(this._y),
-                                    scrollWidth = this.scrollWidth,
-                                    scrollHeight = this.scrollHeight,
-                                    { width: viewportWidth, height: viewportHeight } = this.viewportBounds();
-                                if (positionX >= (scrollWidth - viewportWidth * .5) || positionX <= 0) {
-                                    startClientPosX -= offsetX;
-                                }
-                                if (positionY >= (scrollHeight - viewportHeight * .5) || positionY <= 0) {
-                                    startClientPosY -= offsetY;
+                                if (this.isInfinity()) {
+                                    const offsetX = Math.abs(positionX) - Math.abs(this._x),
+                                        offsetY = Math.abs(positionY) - Math.abs(this._y),
+                                        scrollWidth = this.scrollWidth,
+                                        scrollHeight = this.scrollHeight,
+                                        { width: viewportWidth, height: viewportHeight } = this.viewportBounds();
+                                    if (positionX >= (scrollWidth - viewportWidth * .5) || positionX <= 0) {
+                                        startClientPosX -= offsetX;
+                                    }
+                                    if (positionY >= (scrollHeight - viewportHeight * .5) || positionY <= 0) {
+                                        startClientPosY -= offsetY;
+                                    }
                                 }
                                 startTimeX = endTimeX;
                                 startTimeY = endTimeY;
