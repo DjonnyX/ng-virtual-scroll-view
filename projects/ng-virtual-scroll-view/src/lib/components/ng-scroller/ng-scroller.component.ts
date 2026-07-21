@@ -1,6 +1,6 @@
 import { Component, computed, effect, ElementRef, input, output, Signal, signal, TemplateRef, viewChild, ViewChild } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { combineLatest, debounceTime, filter, from, Subject, tap } from 'rxjs';
+import { combineLatest, debounceTime, filter, from, Subject, switchMap, take, tap } from 'rxjs';
 import { ScrollBox } from './utils';
 import { Id } from '../../types';
 import { NgScrollBarComponent } from "../ng-scroll-bar/ng-scroll-bar.component";
@@ -215,6 +215,23 @@ export class NgScrollerComponent extends NgScrollView {
 
     this._filterId = `${this._service.id}-${MOTION_BLUR}`;
     this._filter = `url(#${this._filterId})`;
+
+    this.$resizeViewport.pipe(
+      takeUntilDestroyed(),
+      debounceTime(0),
+      tap(() => {
+        this.snapIfNeed();
+      }),
+      switchMap(() => {
+        return this.$scroll.pipe(
+          takeUntilDestroyed(this._destroyRef),
+          take(1),
+          tap(() => {
+            this.snapIfNeed();
+          }),
+        );
+      }),
+    ).subscribe();
 
     const $filter = toObservable(this.filter),
       $motionBlur = toObservable(this.motionBlur),
