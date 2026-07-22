@@ -14,6 +14,7 @@ import { IScrollToParams, IWheelEvent } from './interfaces';
 import {
     ACCELERATION_SCALE, ANIMATION_DURATION, AUTO, DURATION, FRICTION_FORCE, INSTANT, LEFT, MASS, MAX_DIST, MAX_DURATION, MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS,
     MAX_VELOCITY_TIMESTAMP, MAX_VELOCITIES_LENGTH, OVERSCROLL_START_ITERATION, SCROLL_EVENT, SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SMOOTH, SPEED_SCALE, TOP,
+    MIN_ACCELERATION, MIN_DELTA,
 } from './const';
 import { calculateDirection, matrix3d } from './utils';
 import { BaseScrollView } from './base';
@@ -891,7 +892,7 @@ export class NgScrollView extends BaseScrollView {
         if (velocities.length > MAX_VELOCITIES_LENGTH) {
             velocities.shift();
         }
-        velocities.push([delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
+        velocities.push([Math.abs(delta) < MIN_DELTA ? 0 : delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
         const len = velocities.length, startIndex = len > indexOffset ? len - indexOffset : 0;
         let aSum = 0, prevV0: [number, number] | undefined, iteration = 0, lastVSign = calculateDirection(velocities);
         const mass = this.scrollingSettings()?.mass ?? MASS;
@@ -910,7 +911,7 @@ export class NgScrollView extends BaseScrollView {
         }
 
         const a0 = aSum * (this.scrollingSettings()?.frictionalForce ?? FRICTION_FORCE);
-        return { a0 };
+        return { a0: Math.abs(a0) < MIN_ACCELERATION ? 0 : a0 };
     }
 
     stopScrolling(force: boolean = false) {
