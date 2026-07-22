@@ -13,7 +13,7 @@ import {
 import { IScrollToParams, IWheelEvent } from './interfaces';
 import {
     ACCELERATION_SCALE, ANIMATION_DURATION, AUTO, DURATION, FRICTION_FORCE, INSTANT, LEFT, MASS, MAX_DIST, MAX_DURATION, MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS,
-    MAX_VELOCITY_TIMESTAMP, OVERSCROLL_START_ITERATION, SCROLL_EVENT, SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SMOOTH, SPEED_SCALE, TOP,
+    MAX_VELOCITY_TIMESTAMP, MAX_VELOCITIES_LENGTH, OVERSCROLL_START_ITERATION, SCROLL_EVENT, SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SMOOTH, SPEED_SCALE, TOP,
 } from './const';
 import { calculateDirection, matrix3d } from './utils';
 import { BaseScrollView } from './base';
@@ -287,6 +287,7 @@ export class NgScrollView extends BaseScrollView {
             debounceTime(100),
             tap(({ v0X, v0Y }) => {
                 this.snapWithInitialForceIfNecessary(v0X, v0Y);
+                this._overscrollIteration = 0;
                 this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
             }),
         ).subscribe();
@@ -317,7 +318,7 @@ export class NgScrollView extends BaseScrollView {
                             return;
                         }
                         this.emitScrollableEvent();
-                        this.checkOverscroll(e);
+                        this.checkOverscroll(e, true);
                         this.stopScrolling(true);
                         const scrollWidth = this.scrollWidth,
                             scrollHeight = this.scrollHeight,
@@ -824,7 +825,7 @@ export class NgScrollView extends BaseScrollView {
 
     private _overscrollYIteration = 0;
 
-    private checkOverscroll(e: Event) {
+    private checkOverscroll(e: Event, wheel: boolean = false) {
         if (!this._overscrollEnabled || !this.overscrollEnabled()) {
             if (e.cancelable) {
                 e.stopImmediatePropagation();
@@ -834,7 +835,7 @@ export class NgScrollView extends BaseScrollView {
         }
         if (this._overscrollEnabled) {
             if (this._scrollDirectionValueX > this._scrollDirectionValueY) {
-                if ((this._horizontalScrollRatio > 0 && this._horizontalScrollRatio < 1) || !this.scrollableX) {
+                if (wheel || (this._horizontalScrollRatio > 0 && this._horizontalScrollRatio < 1) || !this.scrollableX) {
                     this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
                     this._overscrollXIteration = 0;
                 } else {
@@ -844,7 +845,7 @@ export class NgScrollView extends BaseScrollView {
                     }
                 }
             } else {
-                if ((this._verticalScrollRatio > 0 && this._verticalScrollRatio < 1) || !this.scrollableY) {
+                if (wheel || (this._verticalScrollRatio > 0 && this._verticalScrollRatio < 1) || !this.scrollableY) {
                     this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
                     this._overscrollYIteration = 0;
                 } else {
@@ -860,6 +861,9 @@ export class NgScrollView extends BaseScrollView {
     private calculateVelocity(enabled: boolean, offsets: Array<[number, number]>, delta: number, timestamp: number, indexOffset: number = 10) {
         if (!enabled) {
             return { v0: 0 };
+        }
+        if (offsets.length > MAX_VELOCITIES_LENGTH) {
+            offsets.shift();
         }
         offsets.push([delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
 
@@ -880,9 +884,12 @@ export class NgScrollView extends BaseScrollView {
         return { v0 };
     }
 
-    private calculateAcceleration(enavled: boolean, velocities: Array<[number, number]>, delta: number, timestamp: number, indexOffset: number = 10) {
-        if (!enavled) {
+    private calculateAcceleration(enabled: boolean, velocities: Array<[number, number]>, delta: number, timestamp: number, indexOffset: number = 10) {
+        if (!enabled) {
             return { a0: 0 };
+        }
+        if (velocities.length > MAX_VELOCITIES_LENGTH) {
+            velocities.shift();
         }
         velocities.push([delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
         const len = velocities.length, startIndex = len > indexOffset ? len - indexOffset : 0;
