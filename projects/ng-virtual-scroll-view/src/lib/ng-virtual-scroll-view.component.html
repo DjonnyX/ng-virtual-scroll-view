@@ -1,21 +1,15 @@
 <ng-scroller #scroller class="ngvs__scroller" [classes]="($classes | async)!" [scrollable]="($scrollable | async)!"
-  [langTextDir]="($langTextDir | async)!" [leftOffset]="($actualScrollLeftOffset | async)!"
-  [rightOffset]="($actualScrollRightOffset | async)!" [topOffset]="($actualScrollTopOffset | async)!"
-  [bottomOffset]="($actualScrollBottomOffset | async)!" [alignmentLeftOffset]="($alignmentScrollLeftOffset | async)!"
-  [alignmentRightOffset]="($alignmentScrollRightOffset | async)!"
-  [alignmentTopOffset]="($alignmentScrollTopOffset | async)!"
-  [alignmentBottomOffset]="($alignmentScrollBottomOffset | async)!" [direction]="($direction | async)!"
-  [scrollbarThumbRenderer]="($scrollbarThumbRenderer | async)!" [isInfinity]="($isInfinity | async)!"
-  [scrollbarThickness]="($scrollbarThickness | async)!" [scrollbarThumbParams]="($scrollbarThumbParams | async)!"
-  [animationParams]="($animationParams | async)!" [focusedElement]="($focusedElement | async)!"
-  [loading]="($loading | async)!" [overscrollEnabled]="($overscrollEnabled | async)!"
-  [snappingDistance]="($snappingDistance | async)!" [overlappingScrollbar]="($overlappingScrollbar | async)!"
+  [langTextDir]="($langTextDir | async)!" [leftOffset]="($precalculatedScrollLeftOffset | async)!"
+  [rightOffset]="($precalculatedScrollRightOffset | async)!" [topOffset]="($precalculatedScrollTopOffset | async)!"
+  [bottomOffset]="($precalculatedScrollBottomOffset | async)!" [direction]="($direction | async)!"
+  [scrollbarThumbRenderer]="($scrollbarThumbRenderer | async)!" [scrollbarThickness]="($scrollbarThickness | async)!"
+  [scrollbarThumbParams]="($scrollbarThumbParams | async)!" [animationParams]="($animationParams | async)!"
+  [focusedElement]="($focusedElement | async)!" [loading]="($loading | async)!"
+  [overscrollEnabled]="($overscrollEnabled | async)!" [overlappingScrollbar]="($overlappingScrollbar | async)!"
   [scrollbarEnabled]="($actualScrollbarEnabled | async)!" [scrollbarInteractive]="($scrollbarInteractive | async)!"
-  [snapToItem]="($snapToItem | async)!" [snapToItemAlign]="($snapToItemAlign | async)!"
   [scrollbarMinSize]="($scrollbarMinSize | async)!" [scrollBehavior]="($scrollBehavior | async)!"
-  [scrollingSettings]="($scrollingSettings | async)!" [scrollingOneByOne]="($scrollingOneByOne | async)!"
-  [motionBlur]="($motionBlur | async)!" [maxMotionBlur]="($maxMotionBlur | async)!"
-  [motionBlurEnabled]="($motionBlurEnabled | async)!">
+  [scrollingSettings]="($scrollingSettings | async)!" [motionBlur]="($motionBlur | async)!"
+  [maxMotionBlur]="($maxMotionBlur | async)!" [motionBlurEnabled]="($motionBlurEnabled | async)!">
   <ng-container #renderersContainer>
     <ng-content></ng-content>
   </ng-container>
