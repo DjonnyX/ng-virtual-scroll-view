@@ -4,7 +4,7 @@ import { combineLatest, distinctUntilChanged, Subject, takeUntil, tap } from 'rx
 import { IAnimationParams, IRect, IScrollOptions, IScrollViewService } from './interfaces';
 import { Directions, TextDirections } from './enums';
 import { Direction, TextDirection } from './types';
-import { DEFAULT_ANIMATION_PARAMS, DEFAULT_CLICK_DISTANCE, DEFAULT_SNAP_TO_ITEM } from './const';
+import { DEFAULT_ANIMATION_PARAMS, DEFAULT_CLICK_DISTANCE } from './const';
 import { Id } from './types';
 
 /**
@@ -27,8 +27,6 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   private _$tick = new Subject<void>();
   readonly $tick = this._$tick.asObservable();
 
-  dynamic: boolean = true;
-
   scrollLeftOffset: number = 0;
 
   scrollRightOffset: number = 0;
@@ -36,10 +34,6 @@ export class NgVirtualScrollViewService implements IScrollViewService, OnDestroy
   scrollTopOffset: number = 0;
 
   scrollBottomOffset: number = 0;
-
-  snapToItem: boolean = DEFAULT_SNAP_TO_ITEM;
-
-  isInfinity: boolean = false;
 
   isVertical: boolean = true;
 
