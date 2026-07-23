@@ -13,7 +13,7 @@ import { DisposableComponent } from '../../../utils/disposable-component';
  * BaseScrollView
  * Maximum performance for extremely large lists.
  * It is based on algorithms for virtualization of screen objects.
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/base/base-scroll-view.component.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/18.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/base/base-scroll-view.component.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -88,56 +88,6 @@ export class BaseScrollView extends DisposableComponent {
     }
     get bottomOffset() { return this._$bottomOffset.getValue(); }
 
-    protected _$alignmentLeftOffset = new BehaviorSubject<number>(0);
-    readonly $alignmentLeftOffset = this._$alignmentLeftOffset.asObservable();
-    @Input()
-    set alignmentLeftOffset(v: number) {
-        if (this._$alignmentLeftOffset.getValue() !== v) {
-            this._$alignmentLeftOffset.next(v);
-        }
-    }
-    get alignmentLeftOffset() { return this._$alignmentLeftOffset.getValue(); }
-
-    protected _$alignmentTopOffset = new BehaviorSubject<number>(0);
-    readonly $alignmentTopOffset = this._$alignmentTopOffset.asObservable();
-    @Input()
-    set alignmentTopOffset(v: number) {
-        if (this._$alignmentTopOffset.getValue() !== v) {
-            this._$alignmentTopOffset.next(v);
-        }
-    }
-    get alignmentTopOffset() { return this._$alignmentTopOffset.getValue(); }
-
-    protected _$alignmentRightOffset = new BehaviorSubject<number>(0);
-    readonly $alignmentRightOffset = this._$alignmentRightOffset.asObservable();
-    @Input()
-    set alignmentRightOffset(v: number) {
-        if (this._$alignmentRightOffset.getValue() !== v) {
-            this._$alignmentRightOffset.next(v);
-        }
-    }
-    get alignmentRightOffset() { return this._$alignmentRightOffset.getValue(); }
-
-    protected _$alignmentBottomOffset = new BehaviorSubject<number>(0);
-    readonly $alignmentBottomOffset = this._$alignmentBottomOffset.asObservable();
-    @Input()
-    set alignmentBottomOffset(v: number) {
-        if (this._$alignmentBottomOffset.getValue() !== v) {
-            this._$alignmentBottomOffset.next(v);
-        }
-    }
-    get alignmentBottomOffset() { return this._$alignmentBottomOffset.getValue(); }
-
-    protected _$isInfinity = new BehaviorSubject<boolean>(false);
-    readonly $isInfinity = this._$isInfinity.asObservable();
-    @Input()
-    set isInfinity(v: boolean) {
-        if (this._$isInfinity.getValue() !== v) {
-            this._$isInfinity.next(v);
-        }
-    }
-    get isInfinity() { return this._$isInfinity.getValue(); }
-
     protected _$isVertical = new BehaviorSubject<boolean>(true);
     readonly $isVertical = this._$isVertical.asObservable();
 
@@ -197,8 +147,8 @@ export class BaseScrollView extends DisposableComponent {
     set totalWidth(v: number) {
         if (this._totalWidth !== v) {
             this._totalWidth = v;
-            const startOffset = this.leftOffset, endOffset = this.alignmentRightOffset;
-            this._actualTotalWidth = v + startOffset + endOffset;
+            const startOffset = this.leftOffset;
+            this._actualTotalWidth = v + startOffset;
 
             this.normalizeScrollWidth();
         }
@@ -212,8 +162,8 @@ export class BaseScrollView extends DisposableComponent {
     set totalHeight(v: number) {
         if (this._totalHeight !== v) {
             this._totalHeight = v;
-            const startOffset = this.topOffset, endOffset = this.alignmentBottomOffset;
-            this._actualTotalHeight = v + startOffset + endOffset;
+            const startOffset = this.topOffset;
+            this._actualTotalHeight = v + startOffset;
 
             this.normalizeScrollHeight();
         }
@@ -284,9 +234,9 @@ export class BaseScrollView extends DisposableComponent {
             startOffset = this.leftOffset,
             endOffset = this.rightOffset;
         if (this._inversion) {
-            return contentWidth > viewportWidth ? endOffset : (viewportWidth - (contentWidth + this.alignmentRightOffset));
+            return contentWidth > viewportWidth ? endOffset : (viewportWidth - contentWidth);
         }
-        return contentWidth < viewportWidth ? startOffset : ((contentWidth + this.alignmentRightOffset) - viewportWidth);
+        return contentWidth < viewportWidth ? startOffset : (contentWidth - viewportWidth);
     }
 
     get scrollHeight() {
@@ -295,9 +245,9 @@ export class BaseScrollView extends DisposableComponent {
             startOffset = this.topOffset,
             endOffset = this.bottomOffset;
         if (this._inversion) {
-            return contentHeight > viewportHeight ? endOffset : (viewportHeight - (contentHeight + this.alignmentBottomOffset));
+            return contentHeight > viewportHeight ? endOffset : (viewportHeight - contentHeight);
         }
-        return contentHeight < viewportHeight ? startOffset : ((contentHeight + this.alignmentBottomOffset) - viewportHeight);
+        return contentHeight < viewportHeight ? startOffset : (contentHeight - viewportHeight);
     }
 
     protected _$viewportBounds = new BehaviorSubject<ISize>({ width: 0, height: 0 });
@@ -307,8 +257,6 @@ export class BaseScrollView extends DisposableComponent {
     readonly $contentBounds = this._$contentBounds.asObservable();
     get contentBounds() { return this._$contentBounds.getValue(); }
 
-    protected _isCoordinatesOverrided: boolean = false;
-
     tick() {
         this.onResizeContent();
         this.onResizeViewport();
@@ -317,44 +265,10 @@ export class BaseScrollView extends DisposableComponent {
     protected overrideCoordinates(x: number, y: number) { }
 
     protected normalizeScrollWidth() {
-        if (this.isInfinity) {
-            const scrollSize = (this._totalWidth - this._$viewportBounds.getValue().width);
-            if (this._x < 0) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = scrollSize;
-                this.overrideCoordinates(currentPosition, this._y);
-                this._x = currentPosition;
-                return true;
-            } else if (this._x > scrollSize) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = 0;
-                this.overrideCoordinates(currentPosition, this._y);
-                this._x = currentPosition;
-                return true;
-            }
-        }
-        this._isCoordinatesOverrided = false;
         return false;
     }
 
     protected normalizeScrollHeight() {
-        if (this.isInfinity) {
-            const scrollSize = (this._totalHeight - this._$viewportBounds.getValue().height);
-            if (this._y < 0) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = scrollSize;
-                this.overrideCoordinates(this._x, currentPosition);
-                this._y = currentPosition;
-                return true;
-            } else if (this._y > scrollSize) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = 0;
-                this.overrideCoordinates(this._x, currentPosition);
-                this._y = currentPosition;
-                return true;
-            }
-        }
-        this._isCoordinatesOverrided = false;
         return false;
     }
 

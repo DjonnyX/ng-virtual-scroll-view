@@ -2,7 +2,7 @@ export type TEventHandler = (...args: Array<any>) => void;
 
 /**
  * Event emitter interface
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/utils/event-emitter/interfaces/event-emitter.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/18.x/projects/ng-virtual-scroll-view/src/lib/utils/event-emitter/interfaces/event-emitter.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
