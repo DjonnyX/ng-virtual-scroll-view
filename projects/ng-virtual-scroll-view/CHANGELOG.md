@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [22.12.9] - 2026-07-23
+
+### Fix
+- Fix cancellation of scroll handler when scrollbar reaches its initial position.
+- Fix bugs with unintentional scrolling shifts when handling touches.
+
 ## [22.12.8] - 2026-07-19
 
 ### Fix

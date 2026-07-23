@@ -1,10 +1,8 @@
 import {
-    Alignments, SnapToItemAligns, TextDirections, SpreadingModes,
+    TextDirections,
 } from "../enums";
 import { Directions } from "../enums/directions";
 import { IAnimationParams, IScrollingSettings } from '../interfaces';
-import { SpreadingMode } from "../types";
-import { Alignment, SnappingDistance, SnapToItemAlign } from "../types";
 
 export const DEFAULT_LIST_SIZE = 400;
 
@@ -20,18 +18,6 @@ export const DEFAULT_OVERLAPPING_SCROLLBAR = false;
 
 export const DEFAULT_SCROLL_BEHAVIOR: ScrollBehavior = 'smooth';
 
-export const DEFAULT_SNAP_TO_ITEM = false;
-
-export const DEFAULT_SNAP_TO_ITEM_ALIGN: SnapToItemAlign = SnapToItemAligns.CENTER;
-
-export const DEFAULT_SNAPPING_DISTANCE: SnappingDistance = '25%';
-
-export const DEFAULT_SCROLLING_ONE_BY_ONE = false;
-
-export const DEFAULT_ALIGNMENT: Alignment = Alignments.NONE;
-
-export const DEFAULT_SPREADING_MODE: SpreadingMode = SpreadingModes.NORMAL;
-
 export const DEFAULT_MOTION_BLUR = 0.15;
 
 export const DEFAULT_MOTION_BLUR_ENABLED = false;
@@ -40,7 +26,6 @@ export const DEFAULT_MAX_MOTION_BLUR = 0.5;
 
 export const DEFAULT_ANIMATION_PARAMS: IAnimationParams = {
     scrollToItem: 0,
-    snapToItem: 150,
 };
 
 export const DEFAULT_SCROLLING_SETTINGS: IScrollingSettings = {
