@@ -5,22 +5,20 @@ import { CdkScrollable } from '@angular/cdk/scrolling';
 import { BehaviorSubject, combineLatest, debounceTime, delay, filter, fromEvent, map, of, race, Subject, switchMap, takeUntil, tap } from 'rxjs';
 import { ANIMATOR_MIN_TIMESTAMP, Animator, Easing, easeOutQuad } from '../../utils/animator';
 import {
-    BEHAVIOR_INSTANT, DEFAULT_ANIMATION_PARAMS, DEFAULT_OVERSCROLL_ENABLED, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLABLE, DEFAULT_SCROLLING_ONE_BY_ONE,
-    DEFAULT_SCROLLING_SETTINGS, DEFAULT_SNAP_TO_ITEM, DEFAULT_SNAP_TO_ITEM_ALIGN, DEFAULT_SNAPPING_DISTANCE, INTERACTIVE, MOUSE_DOWN,
-    MOUSE_MOVE, MOUSE_UP, TOUCH_END, TOUCH_MOVE, TOUCH_START, WHEEL,
+    BEHAVIOR_INSTANT, DEFAULT_ANIMATION_PARAMS, DEFAULT_OVERSCROLL_ENABLED, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLABLE,
+    DEFAULT_SCROLLING_SETTINGS, INTERACTIVE, MOUSE_DOWN, MOUSE_MOVE, MOUSE_UP, TOUCH_END, TOUCH_MOVE, TOUCH_START, WHEEL,
 } from '../../const';
 import { IScrollToParams, IWheelEvent } from './interfaces';
 import {
     ACCELERATION_SCALE, ANIMATION_DURATION, AUTO, DURATION, FRICTION_FORCE, INSTANT, LEFT, MASS, MAX_DIST, MAX_DURATION, MAX_ITERATIONS_FOR_AVERAGE_CALCULATIONS,
-    MAX_VELOCITY_TIMESTAMP, OVERSCROLL_START_ITERATION, SCROLL_EVENT, SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO, SMOOTH, SPEED_SCALE, TOP,
+    MAX_VELOCITIES_LENGTH, MAX_VELOCITY_TIMESTAMP, MIN_ACCELERATION, MIN_DELTA, OVERSCROLL_START_ITERATION, SCROLL_EVENT, SCROLL_VIEW_NORMALIZE_VALUE_FROM_ZERO,
+    SMOOTH, SPEED_SCALE, TOP,
 } from './const';
 import { calculateDirection, matrix3d } from './utils';
 import { BaseScrollView } from './base';
-import { IAnimationParams, IPoint, IScrollingSettings, ISize } from '../../interfaces';
-import { SnapToItemAligns, TextDirections } from '../../enums';
-import { Id, ScrollDirection, SnappingDistance, SnapToItemAlign } from '../../types';
-import { parseFloatOrPersentageValue } from '../../utils/parse-float-or-persentage-value';
-import { isPercentageValue } from '../../utils/is-persentage-value';
+import { IAnimationParams, IScrollingSettings } from '../../interfaces';
+import { TextDirections } from '../../enums';
+import { ScrollDirection } from '../../types';
 import { calculateVelocity } from './utils/calculate-velocity';
 import { ScrollerDirection } from './enums';
 
@@ -79,46 +77,6 @@ export class NgScrollView extends BaseScrollView {
         }
     }
     get scrollingSettings() { return this._$scrollingSettings.getValue(); }
-
-    protected _$snapToItem = new BehaviorSubject<boolean>(DEFAULT_SNAP_TO_ITEM);
-    readonly $snapToItem = this._$snapToItem.asObservable();
-    @Input()
-    set snapToItem(v: boolean) {
-        if (this._$snapToItem.getValue() !== v) {
-            this._$snapToItem.next(v);
-        }
-    }
-    get snapToItem() { return this._$snapToItem.getValue(); }
-
-    protected _$scrollingOneByOne = new BehaviorSubject<boolean>(DEFAULT_SCROLLING_ONE_BY_ONE);
-    readonly $scrollingOneByOne = this._$scrollingOneByOne.asObservable();
-    @Input()
-    set scrollingOneByOne(v: boolean) {
-        if (this._$scrollingOneByOne.getValue() !== v) {
-            this._$scrollingOneByOne.next(v);
-        }
-    }
-    get scrollingOneByOne() { return this._$scrollingOneByOne.getValue(); }
-
-    protected _$snapToItemAlign = new BehaviorSubject<SnapToItemAlign>(DEFAULT_SNAP_TO_ITEM_ALIGN);
-    readonly $snapToItemAlign = this._$snapToItemAlign.asObservable();
-    @Input()
-    set snapToItemAlign(v: SnapToItemAlign) {
-        if (this._$snapToItemAlign.getValue() !== v) {
-            this._$snapToItemAlign.next(v);
-        }
-    }
-    get snapToItemAlign() { return this._$snapToItemAlign.getValue(); }
-
-    protected _$snappingDistance = new BehaviorSubject<SnappingDistance>(DEFAULT_SNAPPING_DISTANCE);
-    readonly $snappingDistance = this._$snappingDistance.asObservable();
-    @Input()
-    set snappingDistance(v: SnappingDistance) {
-        if (this._$snappingDistance.getValue() !== v) {
-            this._$snappingDistance.next(v);
-        }
-    }
-    get snappingDistance() { return this._$snappingDistance.getValue(); }
 
     protected _$animationParams = new BehaviorSubject<IAnimationParams>(DEFAULT_ANIMATION_PARAMS);
     readonly $animationParams = this._$animationParams.asObservable();
@@ -214,7 +172,7 @@ export class NgScrollView extends BaseScrollView {
     }
     override get x() { return this._x; }
 
-    protected setX(x: number, snap: boolean = true, normalize: boolean = true) {
+    protected setX(x: number, normalize: boolean = true) {
         if (x !== undefined && !Number.isNaN(x)) {
             this._x = this._actualY = x;
 
@@ -227,10 +185,6 @@ export class NgScrollView extends BaseScrollView {
             this.refreshCoordinate(this._x, this._y);
 
             this.measureVelocity();
-
-            if (snap) {
-                this.checkIntersectionComponent();
-            }
         }
     }
 
@@ -239,7 +193,7 @@ export class NgScrollView extends BaseScrollView {
     }
     override get y() { return this._y; }
 
-    protected setY(y: number, snap: boolean = true, normalize: boolean = true) {
+    protected setY(y: number, normalize: boolean = true) {
         if (y !== undefined && !Number.isNaN(y)) {
             this._y = this._actualY = y;
 
@@ -252,10 +206,6 @@ export class NgScrollView extends BaseScrollView {
             this.refreshCoordinate(this._x, this._y);
 
             this.measureVelocity();
-
-            if (snap) {
-                this.checkIntersectionComponent();
-            }
         }
     }
 
@@ -288,10 +238,6 @@ export class NgScrollView extends BaseScrollView {
         }
     }
     override get startLayoutOffsetY() { return this._startLayoutOffsetY; }
-
-    protected _intersectionComponentId: Id | null = null;
-
-    protected _isAlignmentAnimation = false;
 
     get animatedX() { return this._animatorX?.isAnimated ?? false; }
 
@@ -351,10 +297,6 @@ export class NgScrollView extends BaseScrollView {
                     this.stopMoving();
                 }
                 mouseCanceled = touchCanceled = true;
-                if (this.snapToItem || this.scrollingOneByOne) {
-                    this.stopScrolling(true);
-                    this.alignPosition(true, true);
-                }
                 this._$scrollEnd.next(false);
             }),
         ).subscribe();
@@ -365,7 +307,7 @@ export class NgScrollView extends BaseScrollView {
             switchMap(v => of({ v0X: this.averageVelocityX, v0Y: this.averageVelocityY })),
             debounceTime(100),
             tap(({ v0X, v0Y }) => {
-                this.snapWithInitialForceIfNecessary(v0X, v0Y);
+                this._overscrollIteration = 0;
                 this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
             }),
         ).subscribe();
@@ -396,8 +338,8 @@ export class NgScrollView extends BaseScrollView {
                             return;
                         }
                         this.emitScrollableEvent();
-                        this.checkOverscroll(e);
-                        this.stopScrolling(true);
+                        this.checkOverscroll(e, true);
+                        this.stopScrolling();
                         const scrollWidth = this.scrollWidth,
                             scrollHeight = this.scrollHeight,
                             startPosX = this._x,
@@ -405,13 +347,8 @@ export class NgScrollView extends BaseScrollView {
                             deltaX = e.deltaX, dpX = (startPosX + deltaX),
                             deltaY = e.deltaY, dpY = (startPosY + deltaY);
                         let positionX = 0, positionY = 0;
-                        if (this.isInfinity) {
-                            positionX = dpX;
-                            positionY = dpY;
-                        } else {
-                            positionX = dpX < 0 ? 0 : dpX > scrollWidth ? scrollWidth : dpX;
-                            positionY = dpY < 0 ? 0 : dpY > scrollHeight ? scrollHeight : dpY;
-                        }
+                        positionX = dpX < 0 ? 0 : dpX > scrollWidth ? scrollWidth : dpX;
+                        positionY = dpY < 0 ? 0 : dpY > scrollHeight ? scrollHeight : dpY;
                         this.scroll({ [LEFT]: positionX, [TOP]: positionY, behavior: INSTANT, userAction: true, blending: false, fireUpdate: true });
                         this._$wheel.next({ deltaX, deltaY });
                     }),
@@ -438,10 +375,6 @@ export class NgScrollView extends BaseScrollView {
                         this.stopMoving();
                     }
                     mouseCanceled = true;
-                    if (this.snapToItem && this.scrollingOneByOne) {
-                        this._isAlignmentAnimation = false;
-                        this.alignPosition(true, true);
-                    }
                     this._$scrollEnd.next(true);
                 }),
             );
@@ -464,10 +397,6 @@ export class NgScrollView extends BaseScrollView {
                                     this.stopMoving();
                                 }
                                 mouseCanceled = true;
-                                if (this.snapToItem || this.scrollingOneByOne) {
-                                    this._isAlignmentAnimation = false;
-                                    this.alignPosition(true, true);
-                                }
                                 this._$scrollEnd.next(true);
                             }),
                         );
@@ -487,7 +416,7 @@ export class NgScrollView extends BaseScrollView {
                         this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
                         this.cancelOverscroll();
                         this.onDragStart();
-                        this.stopScrolling(true);
+                        this.stopScrolling();
                         this.stopMoving();
                         const target = e.target as HTMLElement;
                         if (target.classList.contains(INTERACTIVE)) {
@@ -556,13 +485,12 @@ export class NgScrollView extends BaseScrollView {
                                             { a0: a0Y } = this.calculateAcceleration(verticalAxisEnabled, velocitiesY, v0Y, timestampY);
                                         this._isMoving = false;
                                         this._$grabbing.next(false);
-                                        if (!this.snapIfNecessary(v0X, v0Y, false) && this.scrollBehavior !== BEHAVIOR_INSTANT) {
+                                        if (this.scrollBehavior !== BEHAVIOR_INSTANT) {
                                             this.moveWithAcceleration(
                                                 positionX, v0X, a0X, timestampX,
                                                 positionY, v0Y, a0Y, timestampY,
                                             );
                                         } else {
-                                            this.snapIfNecessary(v0X, v0Y);
                                             this._$scrollEnd.next(true);
                                         }
                                     }),
@@ -595,10 +523,6 @@ export class NgScrollView extends BaseScrollView {
                         this.stopMoving();
                     }
                     touchCanceled = true;
-                    if (this.snapToItem && this.scrollingOneByOne) {
-                        this._isAlignmentAnimation = false;
-                        this.alignPosition(true, true);
-                    }
                     this._$scrollEnd.next(true);
                 }),
             );
@@ -621,10 +545,6 @@ export class NgScrollView extends BaseScrollView {
                                     this.stopMoving();
                                 }
                                 touchCanceled = true;
-                                if (this.snapToItem || this.scrollingOneByOne) {
-                                    this._isAlignmentAnimation = false;
-                                    this.alignPosition(true, true);
-                                }
                                 this._$scrollEnd.next(true);
                             }),
                         );
@@ -644,7 +564,7 @@ export class NgScrollView extends BaseScrollView {
                         this.scrollDirectionX = this.scrollDirectionY = this._scrollDirectionValueX = this._scrollDirectionValueY = 0;
                         this.cancelOverscroll();
                         this.onDragStart();
-                        this.stopScrolling(true);
+                        this.stopScrolling();
                         this.stopMoving();
                         const target = e.target as HTMLElement;
                         if (target.classList.contains(INTERACTIVE)) {
@@ -713,13 +633,12 @@ export class NgScrollView extends BaseScrollView {
                                             { a0: a0Y } = this.calculateAcceleration(verticalAxisEnabled, velocitiesY, v0Y, timestampY);
                                         this._isMoving = false;
                                         this._$grabbing.next(false);
-                                        if (!this.snapIfNecessary(v0X, v0Y, false) && this.scrollBehavior !== BEHAVIOR_INSTANT) {
+                                        if (this.scrollBehavior !== BEHAVIOR_INSTANT) {
                                             this.moveWithAcceleration(
                                                 positionX, v0X, a0X, timestampX,
                                                 positionY, v0Y, a0Y, timestampY,
                                             );
                                         } else {
-                                            this.snapIfNecessary(v0X, v0Y);
                                             this._$scrollEnd.next(true);
                                         }
                                     }),
@@ -765,25 +684,23 @@ export class NgScrollView extends BaseScrollView {
         }
         const positionX = this._x,
             positionY = this._y;
-        if (!this.isInfinity) {
-            let reseted = false;
-            if (this._$horizontalAxisEnabled.getValue() && (positionX <= 0 || positionX >= this.scrollWidth)) {
-                this._velocitiesX = [0];
-                this._$averageVelocityX.next(0);
-                this._measureVelocityLastPositionX = positionX;
-                this._measureVelocityTimestampX = time;
-                reseted = true;
-            }
-            if (this._$verticalAxisEnabled.getValue() && (positionY <= 0 || positionY >= this.scrollHeight)) {
-                this._velocitiesY = [0];
-                this._$averageVelocityY.next(0);
-                this._measureVelocityLastPositionY = positionY;
-                this._measureVelocityTimestampY = time;
-                reseted = true;
-            }
-            if (reseted) {
-                return;
-            }
+        let reseted = false;
+        if (this._$horizontalAxisEnabled.getValue() && (positionX <= 0 || positionX >= this.scrollWidth)) {
+            this._velocitiesX = [0];
+            this._$averageVelocityX.next(0);
+            this._measureVelocityLastPositionX = positionX;
+            this._measureVelocityTimestampX = time;
+            reseted = true;
+        }
+        if (this._$verticalAxisEnabled.getValue() && (positionY <= 0 || positionY >= this.scrollHeight)) {
+            this._velocitiesY = [0];
+            this._$averageVelocityY.next(0);
+            this._measureVelocityLastPositionY = positionY;
+            this._measureVelocityTimestampY = time;
+            reseted = true;
+        }
+        if (reseted) {
+            return;
         }
         if (this._deltaX === 0) {
             const timeDelta = time - this._measureVelocityTimestampX,
@@ -819,37 +736,6 @@ export class NgScrollView extends BaseScrollView {
 
     protected stopMoving() { }
 
-    private snapIfNecessary(v0X: number, v0Y: number, withInitialForce: boolean = true, animated: boolean = true, force: boolean = false) {
-        const scrollDirectionX = this.scrollDirectionX || (force ? 1 : 0),
-            scrollDirectionY = this.scrollDirectionY || (force ? 1 : 0);
-        if (scrollDirectionX === 0 && scrollDirectionY === 0) {
-            return false;
-        }
-        const snapToItem = this.snapToItem;
-        if (!!snapToItem) {
-            const scrollingOneByOne = this.scrollingOneByOne;
-            if (scrollingOneByOne) {
-                return this.alignPosition();
-            }
-            if (withInitialForce) {
-                return this.snapWithInitialForceIfNecessary(v0X, v0Y, animated, force);
-            }
-        }
-        return false;
-    }
-
-    protected snapWithInitialForceIfNecessary(v0X: number | null = null, v0Y: number | null = null, animated = true, force: boolean = false) {
-        const t = this.animationParams.snapToItem * .01, s = this.getSnappedComponentSize(),
-            vaX = s !== null && t !== 0 ? (s.width / t) : 0,
-            vaY = s !== null && t !== 0 ? (s.height / t) : 0,
-            vX = Math.abs(v0X ?? this.averageVelocityX),
-            vY = Math.abs(v0Y ?? this.averageVelocityY);
-        if (vaX >= vX || vaY >= vY) {
-            return this.alignPosition(animated, force);
-        }
-        return false;
-    }
-
     private calculatePosition(isVertical: boolean, enabled: boolean, axisInversion: boolean, e: MouseEvent | TouchEvent | any, inversion: boolean, startClientPos: number, startTime: number,
         prevClientPosition: number | null, offsets: Array<[number, number]>, velocities: Array<[number, number]>
     ) {
@@ -858,7 +744,7 @@ export class NgScrollView extends BaseScrollView {
         }
         const currentPos = (isVertical ? e.touches?.[e.touches?.length - 1]?.clientY || e.clientY : e.touches?.[e.touches?.length - 1]?.clientX || e.clientX) * (axisInversion ? -1 : 1),
             scrollSize = isVertical ? this.scrollHeight : this.scrollWidth, delta = (inversion ? -1 : 1) * (startClientPos - currentPos),
-            dp = (isVertical ? this._startPositionY : this._startPositionX) + delta, position = this.isInfinity ? dp : dp < 0 ? 0 : dp > scrollSize ? scrollSize : dp,
+            dp = (isVertical ? this._startPositionY : this._startPositionX) + delta, position = dp < 0 ? 0 : dp > scrollSize ? scrollSize : dp,
             endTime = Date.now(), timestamp = endTime - startTime, scrollDelta = (prevClientPosition === 0 || prevClientPosition === null) ? 0 : prevClientPosition - currentPos,
             { v0 } = this.calculateVelocity(true, offsets, scrollDelta, timestamp);
         this.calculateAcceleration(true, velocities, v0, timestamp);
@@ -899,7 +785,7 @@ export class NgScrollView extends BaseScrollView {
 
     private _overscrollYIteration = 0;
 
-    private checkOverscroll(e: Event) {
+    private checkOverscroll(e: Event, wheel: boolean = false) {
         if (!this._overscrollEnabled || !this.overscrollEnabled) {
             if (e.cancelable) {
                 e.stopImmediatePropagation();
@@ -909,7 +795,7 @@ export class NgScrollView extends BaseScrollView {
         }
         if (this._overscrollEnabled) {
             if (this._scrollDirectionValueX > this._scrollDirectionValueY) {
-                if ((this._horizontalScrollRatio > 0 && this._horizontalScrollRatio < 1) || !this.scrollableX) {
+                if (wheel || (this._horizontalScrollRatio > 0 && this._horizontalScrollRatio < 1) || !this.scrollableX) {
                     this.checkOverscrollByAxis(e, this._x, this.scrollWidth);
                     this._overscrollXIteration = 0;
                 } else {
@@ -919,7 +805,7 @@ export class NgScrollView extends BaseScrollView {
                     }
                 }
             } else {
-                if ((this._verticalScrollRatio > 0 && this._verticalScrollRatio < 1) || !this.scrollableY) {
+                if (wheel || (this._verticalScrollRatio > 0 && this._verticalScrollRatio < 1) || !this.scrollableY) {
                     this.checkOverscrollByAxis(e, this._y, this.scrollHeight);
                     this._overscrollYIteration = 0;
                 } else {
@@ -935,6 +821,9 @@ export class NgScrollView extends BaseScrollView {
     private calculateVelocity(enabled: boolean, offsets: Array<[number, number]>, delta: number, timestamp: number, indexOffset: number = 10) {
         if (!enabled) {
             return { v0: 0 };
+        }
+        if (offsets.length > MAX_VELOCITIES_LENGTH) {
+            offsets.shift();
         }
         offsets.push([delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
 
@@ -955,11 +844,14 @@ export class NgScrollView extends BaseScrollView {
         return { v0 };
     }
 
-    private calculateAcceleration(enavled: boolean, velocities: Array<[number, number]>, delta: number, timestamp: number, indexOffset: number = 10) {
-        if (!enavled) {
+    private calculateAcceleration(enabled: boolean, velocities: Array<[number, number]>, delta: number, timestamp: number, indexOffset: number = 10) {
+        if (!enabled) {
             return { a0: 0 };
         }
-        velocities.push([delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
+        if (velocities.length > MAX_VELOCITIES_LENGTH) {
+            velocities.shift();
+        }
+        velocities.push([Math.abs(delta) < MIN_DELTA ? 0 : delta, timestamp < ANIMATOR_MIN_TIMESTAMP ? ANIMATOR_MIN_TIMESTAMP : timestamp]);
         const len = velocities.length, startIndex = len > indexOffset ? len - indexOffset : 0;
         let aSum = 0, prevV0: [number, number] | undefined, iteration = 0, lastVSign = calculateDirection(velocities);
         const mass = this.scrollingSettings?.mass ?? MASS;
@@ -978,14 +870,10 @@ export class NgScrollView extends BaseScrollView {
         }
 
         const a0 = aSum * (this.scrollingSettings?.frictionalForce ?? FRICTION_FORCE);
-        return { a0 };
+        return { a0: Math.abs(a0) < MIN_ACCELERATION ? 0 : a0 };
     }
 
-    stopScrolling(force: boolean = false) {
-        if (this._isAlignmentAnimation && !force) {
-            return;
-        }
-        this._isAlignmentAnimation = false;
+    stopScrolling() {
         this._animatorX.stop();
         this._animatorY.stop();
     }
@@ -1033,38 +921,29 @@ export class NgScrollView extends BaseScrollView {
                 const { startPosition, endPosition, duration } = this.calculateParamsWithVelocity(positionY, vY, a0Y, this.y);
                 this.animate('y', startPosition, endPosition, duration, easeOutQuad, false, true);
             }
-        } else {
-            this.alignPosition(true, true);
         }
     }
 
     protected normalizeValueX(value: number) {
-        if (this.isInfinity) {
-            return value;
-        }
         const startOffset = this._normalizeValueFromZero ? 0 : this.leftOffset,
             scrollable = this.scrollableX,
-            scrollSize = scrollable ? (this.scrollWidth - this.alignmentRightOffset) : 0,
+            scrollSize = scrollable ? this.scrollWidth : 0,
             result = scrollable ? (value <= startOffset ? startOffset : value > scrollSize ? scrollSize : value) : startOffset;
         return result;
     }
 
     protected normalizeValueY(value: number) {
-        if (this.isInfinity) {
-            return value;
-        }
         const startOffset = this._normalizeValueFromZero ? 0 : this.topOffset,
             scrollable = this.scrollableY,
-            scrollSize = scrollable ? (this.scrollHeight - this.alignmentBottomOffset) : 0,
+            scrollSize = scrollable ? this.scrollHeight : 0,
             result = scrollable ? (value <= startOffset ? startOffset : value > scrollSize ? scrollSize : value) : startOffset;
         return result;
     }
 
     protected animate(axis: 'x' | 'y', startValue: number, endValue: number, duration = ANIMATION_DURATION, easingFunction: Easing = easeOutQuad, blending: boolean = false,
-        userAction: boolean = false, alignmentAtComplete: boolean = true, skipOverridedCoordinates: boolean = false): number {
+        userAction: boolean = false): number {
         const isVertical = axis === 'y', animator = isVertical ? this._animatorY : this._animatorX;
         let position = startValue;
-        this._isAlignmentAnimation = !alignmentAtComplete;
 
         if (this.hasAnimation() && blending) {
             const updatable = animator.updateTo(endValue);
@@ -1073,7 +952,7 @@ export class NgScrollView extends BaseScrollView {
             }
         }
         return animator.animate({
-            withDelta: this._service.dynamic && !this.isInfinity,
+            withDelta: true,
             startValue,
             endValue,
             duration,
@@ -1081,279 +960,18 @@ export class NgScrollView extends BaseScrollView {
             getPropValue: () => {
                 return isVertical ? this._y : this._x;
             }, onUpdate: ({ value, timestamp, elapsed }) => {
-                if (this._isCoordinatesOverrided && !skipOverridedCoordinates) {
-                    this._isCoordinatesOverrided = false;
-                    const currentCoordinate = isVertical ? this._y : this._x, delta = endValue - value;
-                    this.animate(axis, currentCoordinate, currentCoordinate + delta, duration - elapsed, easingFunction, blending, userAction, alignmentAtComplete);
-                    return;
-                }
-                const v0 = calculateVelocity(position, value - (isVertical ? this._deltaY : this._deltaX), timestamp) ?? (isVertical ? this.averageVelocityY : this.averageVelocityX);
+                calculateVelocity(position, value - (isVertical ? this._deltaY : this._deltaX), timestamp) ?? (isVertical ? this.averageVelocityY : this.averageVelocityX);
                 position = value;
-                if (alignmentAtComplete && !this._isAlignmentAnimation && !skipOverridedCoordinates) {
-                    if (!this.snapIfNecessary(isVertical ? 0 : v0, isVertical ? v0 : 0)) {
-                        this.move(isVertical ? null : value, isVertical ? value : null, false, userAction);
-                    }
-                } else {
-                    this.move(isVertical ? null : value, isVertical ? value : null, false, userAction);
-                }
+                this.move(isVertical ? null : value, isVertical ? value : null, false, userAction);
                 this._service.update(true);
             }, onComplete: ({ value, timestamp }) => {
-                this._isAlignmentAnimation = false;
-                const v0 = calculateVelocity(position, value, timestamp);
-                if (alignmentAtComplete && !this._isAlignmentAnimation && !skipOverridedCoordinates) {
-                    this.snapIfNecessary(isVertical ? 0 : v0, isVertical ? v0 : 0);
-                } else {
-                    this.move(isVertical ? null : value, isVertical ? value : null, false, userAction);
-                }
+                calculateVelocity(position, value, timestamp);
+                this.move(isVertical ? null : value, isVertical ? value : null, false, userAction);
                 this._$scrollEnd.next(userAction);
                 this._service.update(true);
                 this.onAnimationComplete(value);
             },
         });
-    }
-
-    protected getSnappedComponentSize(): ISize | null {
-        const align = this.snapToItemAlign,
-            sd = this.snappingDistance,
-            snappingDistance = parseFloatOrPersentageValue(sd),
-            isPersentageSnappingDistance = isPercentageValue(sd);
-        let size: ISize | null = null;
-        const scrollDirectionX = this.scrollDirectionX,
-            scrollDirectionY = this.scrollDirectionY,
-            currentPositionX = this.scrollLeft - this._startLayoutOffsetX,
-            currentPositionY = this.scrollTop - this._startLayoutOffsetY,
-            currentComponentBounds = this._service.getComponentBoundsByIntersectionPosition(currentPositionX, currentPositionY),
-            currentComponentWidth = currentComponentBounds?.width ?? 0,
-            currentComponentHeigth = currentComponentBounds?.height ?? 0;
-        switch (align) {
-            case SnapToItemAligns.START: {
-                const offsetX = ((scrollDirectionX === 1 ? currentComponentWidth : 0) - (isPersentageSnappingDistance ? currentComponentWidth * snappingDistance : snappingDistance)) * scrollDirectionX,
-                    offsetY = ((scrollDirectionY === 1 ? currentComponentHeigth : 0) - (isPersentageSnappingDistance ? currentComponentHeigth * snappingDistance : snappingDistance)) * scrollDirectionY,
-                    componentBounds = this._service.getComponentBoundsByIntersectionPosition(currentPositionX + offsetX, currentPositionY + offsetY);
-                if (!!componentBounds) {
-                    const { width, height } = componentBounds;
-                    size = {
-                        width,
-                        height,
-                    };
-                }
-                break;
-            }
-            case SnapToItemAligns.CENTER: {
-                const bounds = this._$viewportBounds.getValue(),
-                    viewportWidth = bounds.width,
-                    viewportHeight = bounds.height,
-                    offsetX = (currentComponentWidth * .5 - (isPersentageSnappingDistance ? currentComponentWidth * snappingDistance : snappingDistance)) * scrollDirectionX,
-                    offsetY = (currentComponentHeigth * .5 - (isPersentageSnappingDistance ? currentComponentHeigth * snappingDistance : snappingDistance)) * scrollDirectionY,
-                    actualPosX = currentPositionX + offsetX + viewportWidth * .5,
-                    actualPosY = currentPositionY + offsetY + viewportHeight * .5,
-                    maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    posX = Math.min(actualPosX, maxPosX),
-                    posY = Math.min(actualPosY, maxPosY);
-                const componentBounds = this._service.getComponentBoundsByIntersectionPosition(posX, posY);
-                if (!!componentBounds) {
-                    const { width, height } = componentBounds;
-                    size = {
-                        width,
-                        height,
-                    };
-                }
-                break;
-            }
-            case SnapToItemAligns.END: {
-                const bounds = this._$viewportBounds.getValue(),
-                    viewportWidth = bounds.width,
-                    viewportHeight = bounds.height,
-                    offsetX = ((scrollDirectionX === 1 ? currentComponentWidth : 0) - (isPersentageSnappingDistance ? currentComponentWidth * snappingDistance : snappingDistance)) * scrollDirectionX,
-                    offsetY = ((scrollDirectionY === 1 ? currentComponentHeigth : 0) - (isPersentageSnappingDistance ? currentComponentHeigth * snappingDistance : snappingDistance)) * scrollDirectionY,
-                    actualPosX = currentPositionX + offsetX + viewportWidth,
-                    actualPosY = currentPositionY + offsetY + viewportHeight,
-                    maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    posX = Math.min(actualPosX, maxPosX),
-                    posY = Math.min(actualPosY, maxPosY);
-                const componentBounds = this._service.getComponentBoundsByIntersectionPosition(posX, posY);
-                if (!!componentBounds) {
-                    const { width, height } = componentBounds;
-                    size = {
-                        width,
-                        height,
-                    };
-                }
-                break;
-            }
-        }
-        return size;
-    }
-
-    protected alignPosition(animated: boolean = true, force: boolean = false) {
-        if (!this.snapToItem || (this._isAlignmentAnimation && !force)) {
-            return false;
-        }
-        const scrollDirectionX = this.scrollDirectionX || (force ? 1 : 0),
-            scrollDirectionY = this.scrollDirectionY || (force ? 1 : 0);
-        if (scrollDirectionX === 0 && scrollDirectionY === 0) {
-            return false;
-        }
-        const align = this.snapToItemAlign,
-            bounds = this._$viewportBounds.getValue(),
-            viewportWidth = bounds.width,
-            viewportHeight = bounds.height,
-            sd = this.snappingDistance,
-            snappingDistance = parseFloatOrPersentageValue(sd),
-            isPersentageSnappingDistance = isPercentageValue(sd);
-        let position: IPoint | null = null;
-        const currentPositionX = this.scrollLeft - this._startLayoutOffsetX,
-            currentPositionY = this.scrollTop - this._startLayoutOffsetY,
-            currentComponentBounds = this._service.getComponentBoundsByIntersectionPosition(currentPositionX, currentPositionY),
-            currentComponentWidth = currentComponentBounds?.width ?? 0,
-            currentComponentHeight = currentComponentBounds?.height ?? 0;
-        switch (align) {
-            case SnapToItemAligns.START: {
-                const offsetX = ((scrollDirectionX === 1 ? currentComponentWidth : 0) - (isPersentageSnappingDistance ? currentComponentWidth * snappingDistance : snappingDistance)) * scrollDirectionX,
-                    offsetY = ((scrollDirectionY === 1 ? currentComponentHeight : 0) - (isPersentageSnappingDistance ? currentComponentHeight * snappingDistance : snappingDistance)) * scrollDirectionY,
-                    componentBounds = this._service.getComponentBoundsByIntersectionPosition(currentPositionX + offsetX, currentPositionY + offsetY);
-                if (!!componentBounds) {
-                    const { x, y } = componentBounds, leftOffset = this.leftOffset, topOffset = this.topOffset,
-                        alignmentLeftOffset = this.alignmentLeftOffset, alignmentTopOffset = this.alignmentTopOffset,
-                        maxPosX = this.scrollWidth - (leftOffset - alignmentLeftOffset) + this._startLayoutOffsetX,
-                        maxPosY = this.scrollHeight - (topOffset - alignmentTopOffset) + this._startLayoutOffsetY;
-                    position = {
-                        x: x - (leftOffset - alignmentLeftOffset) + this._startLayoutOffsetX,
-                        y: y - (topOffset - alignmentTopOffset) + this._startLayoutOffsetY,
-                    }
-                    if (this.isInfinity) {
-                        if (position.x < 0 || position.x > maxPosX) {
-                            position.x = maxPosX;
-                            this._x = this.scrollWidth;
-                        }
-                        if (position.y < 0 || position.y > maxPosY) {
-                            position.y = maxPosY;
-                            this._y = this.scrollHeight;
-                        }
-                    }
-                }
-                break;
-            }
-            case SnapToItemAligns.CENTER: {
-                const offsetX = (currentComponentWidth * .5 - (isPersentageSnappingDistance ? currentComponentWidth * snappingDistance : snappingDistance)) * scrollDirectionX,
-                    offsetY = (currentComponentHeight * .5 - (isPersentageSnappingDistance ? currentComponentHeight * snappingDistance : snappingDistance)) * scrollDirectionY,
-                    actualPosX = currentPositionX + offsetX + viewportWidth * .5,
-                    actualPosY = currentPositionY + offsetY + viewportHeight * .5,
-                    maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    posX = Math.min(actualPosX, maxPosX),
-                    posY = Math.min(actualPosY, maxPosY);
-                const componentBounds = this._service.getComponentBoundsByIntersectionPosition(posX, posY);
-                if (!!componentBounds) {
-                    const { x, y, width, height } = componentBounds, leftOffset = this.leftOffset, alignmentLeftOffset = this.alignmentLeftOffset,
-                        topOffset = this.topOffset, alignmentTopOffset = this.alignmentTopOffset;
-                    const maxPosX = this.scrollWidth - width * .5 - viewportWidth * .5 - (leftOffset - alignmentLeftOffset) * .5,
-                        maxPosY = this.scrollHeight - height * .5 - viewportHeight * .5 - (topOffset - alignmentTopOffset) * .5;
-                    position = {
-                        x: x + width * .5 - viewportWidth * .5 - (leftOffset - alignmentLeftOffset) * .5 + this._startLayoutOffsetX,
-                        y: y + height * .5 - viewportHeight * .5 - (topOffset - alignmentTopOffset) * .5 + this._startLayoutOffsetY,
-                    };
-                    if (this.isInfinity) {
-                        if (position.x <= 0 || position.x > maxPosX) {
-                            position.x = maxPosX;
-                            this._x = this.scrollWidth;
-                        }
-                        if (position.y <= 0 || position.y > maxPosY) {
-                            position.y = maxPosY;
-                            this._y = this.scrollHeight;
-                        }
-                    }
-                }
-                break;
-            }
-            case SnapToItemAligns.END: {
-                const offsetX = ((scrollDirectionX === 1 ? currentComponentWidth : 0) - (isPersentageSnappingDistance ? currentComponentWidth * snappingDistance : snappingDistance)) * scrollDirectionX,
-                    offsetY = ((scrollDirectionY === 1 ? currentComponentHeight : 0) - (isPersentageSnappingDistance ? currentComponentHeight * snappingDistance : snappingDistance)) * scrollDirectionY,
-                    actualPosX = currentPositionX + offsetX + viewportWidth,
-                    actualPosY = currentPositionY + offsetY + viewportHeight,
-                    maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    posX = Math.min(actualPosX, maxPosX),
-                    posY = Math.min(actualPosY, maxPosY);
-                const componentBounds = this._service.getComponentBoundsByIntersectionPosition(posX, posY);
-                if (!!componentBounds) {
-                    const { x, y } = componentBounds;
-                    position = {
-                        x: x - viewportWidth + this._startLayoutOffsetX,
-                        y: y - viewportHeight + this._startLayoutOffsetY,
-                    };
-                }
-                break;
-            }
-        }
-
-        const cPosX = this.scrollLeft,
-            cPosY = this.scrollTop;
-
-        if (position !== null && !(position.x === cPosX && position.y === cPosY)) {
-            this.stopScrolling(true);
-            this.animate('x', cPosX, position.x, animated ? this.animationParams.snapToItem : 1, easeOutQuad, false, false, false, true);
-            this.animate('y', cPosY, position.y, animated ? this.animationParams.snapToItem : 1, easeOutQuad, false, false, false, true);
-            return true;
-        }
-        return false;
-    }
-
-    protected checkIntersectionComponent() {
-        const align = this.snapToItemAlign,
-            bounds = this._$viewportBounds.getValue(),
-            viewportWidth = bounds.width,
-            viewportHeight = bounds.height;
-        let componentId: Id | null = null;
-        const currentPositionX = this.scrollLeft - this._startLayoutOffsetX,
-            currentPositionY = this.scrollTop - this._startLayoutOffsetY;
-        switch (align) {
-            case SnapToItemAligns.START: {
-                const maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    componentBounds = this._service.getComponentBoundsByIntersectionPosition(currentPositionX, currentPositionY, maxPosX, maxPosY);
-                if (!!componentBounds) {
-                    const { id } = componentBounds;
-                    componentId = id;
-                }
-                break;
-            }
-            case SnapToItemAligns.CENTER: {
-                const actualPosX = currentPositionX + viewportWidth * .5,
-                    actualPosY = currentPositionY + viewportHeight * .5,
-                    maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    posX = Math.min(actualPosX, maxPosX),
-                    posY = Math.min(actualPosY, maxPosY);
-                const componentBounds = this._service.getComponentBoundsByIntersectionPosition(posX, posY, maxPosX, maxPosY);
-                if (!!componentBounds) {
-                    const { id } = componentBounds;
-                    componentId = id;
-                }
-                break;
-            }
-            case SnapToItemAligns.END: {
-                const actualPosX = currentPositionX + viewportWidth,
-                    actualPosY = currentPositionY + viewportHeight,
-                    maxPosX = this.scrollWidth,
-                    maxPosY = this.scrollHeight,
-                    posX = Math.min(actualPosX, maxPosX),
-                    posY = Math.min(actualPosY, maxPosY);
-                const componentBounds = this._service.getComponentBoundsByIntersectionPosition(posX, posY, maxPosX, maxPosY);
-                if (!!componentBounds) {
-                    const { id } = componentBounds;
-                    componentId = id;
-                }
-                break;
-            }
-        }
-
-        if (componentId !== this._intersectionComponentId && componentId !== null) {
-            this._service.setIntersectionElementBySnapToItemAlign(componentId);
-        }
-        this._intersectionComponentId = componentId;
     }
 
     protected override normalizeScrollWidth() {
@@ -1378,27 +996,25 @@ export class NgScrollView extends BaseScrollView {
     }
 
     scrollLimits(value?: number | undefined, silent: boolean = false): boolean {
-        if (!this.isInfinity) {
-            const x = value !== undefined ? value : this._x, y = value !== undefined ? value : this._y,
-                yy = this.normalizeValueY(y), xx = this.normalizeValueX(x);
-            if (y !== yy) {
-                if (silent) {
-                    this._y = yy;
-                    this.refreshCoordinate(this._x, this._y);
-                } else {
-                    this.y = yy;
-                }
-                return true;
+        const x = value !== undefined ? value : this._x, y = value !== undefined ? value : this._y,
+            yy = this.normalizeValueY(y), xx = this.normalizeValueX(x);
+        if (y !== yy) {
+            if (silent) {
+                this._y = yy;
+                this.refreshCoordinate(this._x, this._y);
+            } else {
+                this.y = yy;
             }
-            if (x !== xx) {
-                if (silent) {
-                    this._x = xx;
-                    this.refreshCoordinate(this._x, this._y);
-                } else {
-                    this.x = xx;
-                }
-                return true;
+            return true;
+        }
+        if (x !== xx) {
+            if (silent) {
+                this._x = xx;
+                this.refreshCoordinate(this._x, this._y);
+            } else {
+                this.x = xx;
             }
+            return true;
         }
         return false;
     }
@@ -1408,7 +1024,6 @@ export class NgScrollView extends BaseScrollView {
             posX = params.x ?? params.left ?? null,
             posY = params.y ?? params.top ?? null,
             userAction = params.userAction ?? false,
-            snap = params.snap ?? true,
             normalize = params.normalize ?? true,
             ease = params.ease || easeOutQuad,
             fireUpdate = params.fireUpdate ?? true,
@@ -1436,7 +1051,7 @@ export class NgScrollView extends BaseScrollView {
         } else {
             if (horizontalAxisEnabled && x !== null && (x !== prevX || force)) {
                 if (x !== null) {
-                    this.setX(x, snap, normalize);
+                    this.setX(x, normalize);
                     if (userAction) {
                         const scrollWidth = Math.abs(this.scrollWidth),
                             xx = Math.abs(this._x);
@@ -1452,7 +1067,7 @@ export class NgScrollView extends BaseScrollView {
             }
             if (verticalAxisEnabled && y !== null && (y !== prevY || force)) {
                 if (y !== null) {
-                    this.setY(y, snap, normalize);
+                    this.setY(y, normalize);
                     if (userAction) {
                         const scrollHeight = Math.abs(this.scrollHeight),
                             yy = Math.abs(this._y);
