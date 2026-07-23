@@ -261,7 +261,7 @@ export class NgScrollerComponent extends NgScrollView {
     }
   }
 
-  protected override setX(x: number, snap: boolean = true, normalize: boolean = true) {
+  protected override setX(x: number, normalize: boolean = true) {
     if (x !== undefined && !Number.isNaN(x)) {
       this.updateDirectionX(x, this._x);
 
@@ -278,14 +278,10 @@ export class NgScrollerComponent extends NgScrollView {
       this.updateScrollBar(false);
 
       this.recalculatePerspective();
-
-      if (snap) {
-        this.checkIntersectionComponent();
-      }
     }
   }
 
-  protected override setY(y: number, snap: boolean = true, normalize: boolean = true) {
+  protected override setY(y: number, normalize: boolean = true) {
     if (y !== undefined && !Number.isNaN(y)) {
       this.updateDirectionY(y, this._y);
 
@@ -302,10 +298,6 @@ export class NgScrollerComponent extends NgScrollView {
       this.updateScrollBar(true);
 
       this.recalculatePerspective();
-
-      if (snap) {
-        this.checkIntersectionComponent();
-      }
     }
   }
 
@@ -679,14 +671,10 @@ export class NgScrollerComponent extends NgScrollView {
     }
   }
 
-  snapIfNeed(animated = true) {
-    this.snapWithInitialForceIfNecessary(null, null, animated, true);
-  }
-
   startScrollTo() {
     this.stopScrollbar(false);
     this.stopScrollbar(true);
-    this.stopScrolling(true);
+    this.stopScrolling();
     this.scrollDirectionX = this.scrollDirectionY = 0;
     this.dropVelocity();
     this._isScrollsTo = true;
@@ -696,7 +684,6 @@ export class NgScrollerComponent extends NgScrollView {
     this._isScrollsTo = false;
     this.scrollDirectionX = this.scrollDirectionY = 0;
     this.dropVelocity();
-    this.checkIntersectionComponent();
     this.fireScrollEvent(true);
   }
 
@@ -714,7 +701,6 @@ export class NgScrollerComponent extends NgScrollView {
     const scrollBar = isVertical ? this.scrollBarVertical : this.scrollBarHorizontal;
     if (!!scrollBar) {
       scrollBar.stopScrolling();
-      this.alignPosition();
       this.dropVelocity();
     }
   }
@@ -750,7 +736,7 @@ export class NgScrollerComponent extends NgScrollView {
       return;
     }
     this._$scrollbarScroll.next(true);
-    this.stopScrolling(true);
+    this.stopScrolling();
     const {
       position: absolutePosition,
     } = this._scrollBox.getScrollPositionByScrollBar({
@@ -783,10 +769,7 @@ export class NgScrollerComponent extends NgScrollView {
     }
     this.dropVelocity();
     this._service.update(false);
-    const isEdge = this.fireUpdateIfEdgesDetected(isVertical, position, min, max, true, true);
-    if (!isEdge) {
-      this.alignPosition();
-    }
+    this.fireUpdateIfEdgesDetected(isVertical, position, min, max, true, true);
     if (isVertical) {
       this.scrollDirectionY = 0;
     } else {
