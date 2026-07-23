@@ -19,10 +19,6 @@ export interface IScrollViewService {
 
     direction: Direction;
 
-    dynamic: boolean
-
-    isInfinity: boolean;
-
     scrollLeftOffset: number;
 
     scrollRightOffset: number;
@@ -38,8 +34,6 @@ export interface IScrollViewService {
     snapScrollToTop: boolean;
 
     snapScrollToBottom: boolean;
-
-    snapToItem: boolean;
 
     get scrollBarSize(): number;
 

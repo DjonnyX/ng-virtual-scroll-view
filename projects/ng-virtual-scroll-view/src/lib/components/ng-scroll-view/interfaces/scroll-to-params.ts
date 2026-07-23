@@ -2,7 +2,7 @@ import { Easing } from "../../../utils/animator";
 
 /**
  * IScrollToParams
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/interfaces/scroll-to-params.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/18.x/projects/ng-virtual-scroll-view/src/lib/components/ng-scroll-view/interfaces/scroll-to-params.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
@@ -11,7 +11,6 @@ export interface IScrollToParams {
     y?: number | null;
     left?: number | null;
     top?: number | null;
-    snap?: boolean;
     normalize?: boolean;
     force?: boolean;
     blending?: boolean;

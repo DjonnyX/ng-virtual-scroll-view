@@ -4,7 +4,7 @@ import { IAnimatorParams, IAnimatorUpdateData } from './interfaces';
 
 /**
  * Animator
- * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/14.x/projects/ng-virtual-scroll-view/src/lib/utils/animator/animator.ts
+ * @link https://github.com/DjonnyX/ng-virtual-scroll-view/blob/18.x/projects/ng-virtual-scroll-view/src/lib/utils/animator/animator.ts
  * @author Evgenii Alexandrovich Grebennikov
  * @email djonnyx@gmail.com
  */
