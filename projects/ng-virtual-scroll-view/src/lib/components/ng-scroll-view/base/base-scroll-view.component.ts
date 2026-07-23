@@ -37,16 +37,6 @@ export class BaseScrollView {
 
     readonly bottomOffset = input<number>(0);
 
-    readonly alignmentLeftOffset = input<number>(0);
-
-    readonly alignmentTopOffset = input<number>(0);
-
-    readonly alignmentRightOffset = input<number>(0);
-
-    readonly alignmentBottomOffset = input<number>(0);
-
-    readonly isInfinity = input<boolean>(false);
-
     readonly grabbing = signal<boolean>(false);
 
     protected _inversion = inject(SCROLL_VIEW_INVERSION);
@@ -103,8 +93,8 @@ export class BaseScrollView {
     set totalWidth(v: number) {
         if (this._totalWidth !== v) {
             this._totalWidth = v;
-            const startOffset = this.leftOffset(), endOffset = this.alignmentRightOffset();
-            this._actualTotalWidth = v + startOffset + endOffset;
+            const startOffset = this.leftOffset();
+            this._actualTotalWidth = v + startOffset;
 
             this.normalizeScrollWidth();
         }
@@ -118,8 +108,8 @@ export class BaseScrollView {
     set totalHeight(v: number) {
         if (this._totalHeight !== v) {
             this._totalHeight = v;
-            const startOffset = this.topOffset(), endOffset = this.alignmentBottomOffset();
-            this._actualTotalHeight = v + startOffset + endOffset;
+            const startOffset = this.topOffset();
+            this._actualTotalHeight = v + startOffset;
 
             this.normalizeScrollHeight();
         }
@@ -190,9 +180,9 @@ export class BaseScrollView {
             startOffset = this.leftOffset(),
             endOffset = this.rightOffset();
         if (this._inversion) {
-            return contentWidth > viewportWidth ? endOffset : (viewportWidth - (contentWidth + this.alignmentRightOffset()));
+            return contentWidth > viewportWidth ? endOffset : (viewportWidth - contentWidth);
         }
-        return contentWidth < viewportWidth ? startOffset : ((contentWidth + this.alignmentRightOffset()) - viewportWidth);
+        return contentWidth < viewportWidth ? startOffset : (contentWidth - viewportWidth);
     }
 
     get scrollHeight() {
@@ -201,16 +191,14 @@ export class BaseScrollView {
             startOffset = this.topOffset(),
             endOffset = this.bottomOffset();
         if (this._inversion) {
-            return contentHeight > viewportHeight ? endOffset : (viewportHeight - (contentHeight + this.alignmentBottomOffset()));
+            return contentHeight > viewportHeight ? endOffset : (viewportHeight - contentHeight);
         }
-        return contentHeight < viewportHeight ? startOffset : ((contentHeight + this.alignmentBottomOffset()) - viewportHeight);
+        return contentHeight < viewportHeight ? startOffset : (contentHeight - viewportHeight);
     }
 
     readonly viewportBounds = signal<ISize>({ width: 0, height: 0 });
 
     readonly contentBounds = signal<ISize>({ width: 0, height: 0 });
-
-    protected _isCoordinatesOverrided: boolean = false;
 
     tick() {
         this.onResizeContent();
@@ -220,44 +208,10 @@ export class BaseScrollView {
     protected overrideCoordinates(x: number, y: number) { }
 
     protected normalizeScrollWidth() {
-        if (this.isInfinity()) {
-            const scrollSize = (this._totalWidth - this.viewportBounds().width);
-            if (this._x < 0) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = scrollSize;
-                this.overrideCoordinates(currentPosition, this._y);
-                this._x = currentPosition;
-                return true;
-            } else if (this._x > scrollSize) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = 0;
-                this.overrideCoordinates(currentPosition, this._y);
-                this._x = currentPosition;
-                return true;
-            }
-        }
-        this._isCoordinatesOverrided = false;
         return false;
     }
 
     protected normalizeScrollHeight() {
-        if (this.isInfinity()) {
-            const scrollSize = (this._totalHeight - this.viewportBounds().height);
-            if (this._y < 0) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = scrollSize;
-                this.overrideCoordinates(this._x, currentPosition);
-                this._y = currentPosition;
-                return true;
-            } else if (this._y > scrollSize) {
-                this._isCoordinatesOverrided = true;
-                const currentPosition = 0;
-                this.overrideCoordinates(this._x, currentPosition);
-                this._y = currentPosition;
-                return true;
-            }
-        }
-        this._isCoordinatesOverrided = false;
         return false;
     }
 
