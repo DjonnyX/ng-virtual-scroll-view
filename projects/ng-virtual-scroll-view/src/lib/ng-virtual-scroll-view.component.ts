@@ -10,20 +10,18 @@ import {
   BEHAVIOR_INSTANT, CLASS_SCROLL_VIEW_HORIZONTAL, CLASS_SCROLL_VIEW_VERTICAL, DEFAULT_DIRECTION, DEFAULT_LIST_SIZE, LEFT_PROP_NAME,
   TOP_PROP_NAME, MIN_PIXELS_FOR_PREVENT_SNAPPING, DEFAULT_LANG_TEXT_DIR, DEFAULT_CLICK_DISTANCE, DEFAULT_SCROLLBAR_THICKNESS,
   DEFAULT_SCROLLBAR_MIN_SIZE, BEHAVIOR_AUTO, DEFAULT_SCROLLBAR_ENABLED, DEFAULT_SCROLLBAR_INTERACTIVE, DEFAULT_OVERSCROLL_ENABLED,
-  DEFAULT_ANIMATION_PARAMS, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLING_SETTINGS, DEFAULT_SNAP_TO_ITEM, DEFAULT_SNAP_TO_ITEM_ALIGN,
-  DEFAULT_MOTION_BLUR, DEFAULT_MAX_MOTION_BLUR, DEFAULT_SCROLLING_ONE_BY_ONE, DEFAULT_MOTION_BLUR_ENABLED, DEFAULT_SNAPPING_DISTANCE,
-  DEFAULT_ALIGNMENT, DEFAULT_SPREADING_MODE, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SNAP_SCROLLTO_LEFT, DEFAULT_SNAP_SCROLLTO_TOP,
+  DEFAULT_ANIMATION_PARAMS, DEFAULT_SCROLL_BEHAVIOR, DEFAULT_SCROLLING_SETTINGS, DEFAULT_MOTION_BLUR, DEFAULT_MAX_MOTION_BLUR,
+  DEFAULT_MOTION_BLUR_ENABLED, DEFAULT_OVERLAPPING_SCROLLBAR, DEFAULT_SNAP_SCROLLTO_LEFT, DEFAULT_SNAP_SCROLLTO_TOP,
   DEFAULT_SNAP_SCROLLTO_RIGHT, DEFAULT_SNAP_SCROLLTO_BOTTOM, CLASS_SCROLL_VIEW_BOTH, DEFAULT_SCROLLABLE,
 } from './const';
 import {
   IScrollEvent, IAnimationParams, ISize, IScrollingSettings, IScrollOptions,
 } from './interfaces';
 import {
-  Alignment, ArithmeticExpression, Id, SnappingDistance, Direction, SnapToItemAlign, TextDirection,
-  SpreadingMode,
+  ArithmeticExpression, Id, Direction, TextDirection,
 } from './types';
 import {
-  Alignments, Directions, SpreadingModes, TextDirections,
+  Directions, TextDirections,
 } from './enums';
 import { ScrollEvent, toggleClassName } from './utils';
 import { isDirection } from './utils/is-direction';
@@ -36,7 +34,6 @@ import { NgScrollerComponent } from './components/ng-scroller/ng-scroller.compon
 import { IScrollToParams } from './components/ng-scroll-view';
 import { isPercentageValue } from './utils/is-persentage-value';
 import { parseArithmeticExpression } from './utils/parse-arithmetic-expression';
-import { isSpreadingMode } from './utils/is-spreading-mode';
 import { SCROLL_VIEW_SERVICE } from './components/ng-scroll-view/const';
 
 /**
@@ -91,11 +88,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * Fires when the viewport size is changed.
    */
   onViewportChange = output<ISize>();
-
-  /**
-   * Emit the component ID when an element crosses the alignment line specified by the snapToItemAlign property.
-   */
-  onSnapItem = output<Id>();
 
   /**
    * Fires when the scroll reaches the left.
@@ -299,7 +291,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If snapScrollToLeft is disabled and snapScrollToRight is enabled, the scroller will snap to the right;
    * If you move the scrollbar left, the scroller will snap to the left.
    * If both snapScrollToLeft and snapScrollToRight are disabled, the scroller will never snap to the left or right.
-   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToRight` property is automatically disabled because the list has no beginning or end.
    */
   snapScrollToLeft = input<boolean>(DEFAULT_SNAP_SCROLLTO_LEFT, { ...this._snapScrollToLeftOptions });
 
@@ -322,7 +313,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If snapScrollToTop is disabled and snapScrollToBottom is enabled, the scroller will snap to the bottom;
    * If you move the scrollbar up, the scroller will snap to the top.
    * If both snapScrollToTop and snapScrollToBottom are disabled, the scroller will never snap to the top or bottom.
-   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
    */
   snapScrollToTop = input<boolean>(DEFAULT_SNAP_SCROLLTO_TOP, { ...this._snapScrollToTopOptions });
 
@@ -345,7 +335,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If snapScrollToLeft is disabled and snapScrollToRight is enabled, the scroller will snap to the right;
    * If you move the scrollbar left, the scroller will snap to the left.
    * If both snapScrollToLeft and snapScrollToRight are disabled, the scroller will never snap to the left or right.
-   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToRight` property is automatically disabled because the list has no beginning or end.
    */
   snapScrollToRight = input<boolean>(DEFAULT_SNAP_SCROLLTO_RIGHT, { ...this._snapScrollToRightOptions });
 
@@ -368,7 +357,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    * If snapScrollToTop is disabled and snapScrollToBottom is enabled, the scroller will snap to the bottom;
    * If you move the scrollbar up, the scroller will snap to the top.
    * If both snapScrollToTop and snapScrollToBottom are disabled, the scroller will never snap to the top or bottom.
-   * In the `spreadingMode=SpreadingModes.INFINITY` mode, the `snapScrollToBottom` property is automatically disabled because the list has no beginning or end.
    */
   snapScrollToBottom = input<boolean>(DEFAULT_SNAP_SCROLLTO_BOTTOM, { ...this._snapScrollToBottomOptions });
 
@@ -519,114 +507,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    */
   scrollingSettings = input<IScrollingSettings>(DEFAULT_SCROLLING_SETTINGS, { ...this._scrollingSettingsOptions });
 
-  private _snapToItemOptions = {
-    transform: (v: boolean) => {
-      const valid = validateBoolean(v);
-
-      if (!valid) {
-        console.error('The "snapToItem" parameter must be of type `boolean`.');
-        return DEFAULT_SNAP_TO_ITEM;
-      }
-      return v;
-    },
-  } as any;
-
-  /**
-   * Snap to an item. The default value is `false`.
-   */
-  snapToItem = input<boolean>(DEFAULT_SNAP_TO_ITEM, { ...this._snapToItemOptions });
-
-  private _snapToItemAlignOptions = {
-    transform: (v: SnapToItemAlign) => {
-      const valid = validateString(v) && (v === 'start' || v === 'center' || v === 'end');
-
-      if (!valid) {
-        console.error('The "snapToItemAlign" parameter must be one of `start`, `center` or `end`.');
-        return DEFAULT_SNAP_TO_ITEM_ALIGN;
-      }
-      return v;
-    },
-  } as any;
-
-  /**
-   * Alignment for snapToItem. Available values ​​are `start`, `center`, and `end`. The default value is `center`.
-   */
-  snapToItemAlign = input<SnapToItemAlign>(DEFAULT_SNAP_TO_ITEM_ALIGN, { ...this._snapToItemAlignOptions });
-
-  private _snappingDistanceOptions = {
-    transform: (v: SnappingDistance | any) => {
-      const valid = validateString(v) || validateFloat(v);
-
-      if (!valid) {
-        console.error('The "snappingDistance" parameter must be of type `number` or `string`.');
-        return DEFAULT_SNAPPING_DISTANCE;
-      }
-      return v;
-    },
-  } as any;
-
-  /**
-   * Snapping activation distance. Can be specified as a percentage of the element size or in absolute values.
-   * The default value is `25%`.
-   */
-  snappingDistance = input<SnappingDistance>(DEFAULT_SNAPPING_DISTANCE, { ...this._snappingDistanceOptions });
-
-  private _scrollingOneByOneOptions = {
-    transform: (v: any) => {
-      const valid = validateBoolean(v);
-
-      if (!valid) {
-        console.error('The "scrollingOneByOne" parameter must be of type `boolean`.');
-        return DEFAULT_SCROLLING_ONE_BY_ONE;
-      }
-      return v;
-    },
-  } as any;
-
-  /**
-   * Specifies whether to scroll one item at a time if true and the scrollToItem property is set. The default value is `false`.
-   */
-  scrollingOneByOne = input<boolean>(DEFAULT_SCROLLING_ONE_BY_ONE, { ...this._scrollingOneByOneOptions });
-
-  private _alignmentOptions = {
-    transform: (v: Alignment) => {
-      const valid = validateString(v) && (v === 'none' || v === 'center');
-
-      if (!valid) {
-        console.error('The "alignment" parameter must be one of `none` or `centert`.');
-        return DEFAULT_ALIGNMENT;
-      }
-      return v;
-    },
-  } as any;
-
-  /**
-   * Determines the alignment of the list. Two modes are available: `none` and `center`. The `center` mode aligns the list items to the center of the viewport, ideal for use with the `itemTransform` property.
-   * The `none` mode means no alignment. The default value is `none`.
-   */
-  alignment = input<Alignment>(DEFAULT_ALIGNMENT, { ...this._alignmentOptions });
-
-  private _spreadingModeOptions = {
-    transform: (v: SpreadingMode) => {
-      const valid = validateString(v) && (v === 'normal' || v === 'infinity');
-
-      if (!valid) {
-        console.error('The "spreadingMode" parameter must be one of `normal` or `infinity`.');
-        return DEFAULT_SPREADING_MODE;
-      }
-      return v;
-    },
-  } as any;
-
-  /**
-   * The order of list elements. Available values ​​are `standard` and `infinity`.
-   * `normal` — list elements are ordered according to the collection sequence.
-   * `infinity` — list elements are ordered cyclically, forming an infinite list.
-   * When set to `infinity`, the `alignment` property is forced to the value `Alignments.CENTER`, the `scrollbarEnabled` property is forced to the `false`
-   * The default value is `standard`.
-   */
-  spreadingMode = input<SpreadingMode>(DEFAULT_SPREADING_MODE, { ...this._spreadingModeOptions });
-
   private _motionBlurOptions = {
     transform: (v: number) => {
       const valid = validateFloat(v);
@@ -686,10 +566,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
         console.error('The "scrollToItem" parameter must be of type `number`.');
         return DEFAULT_ANIMATION_PARAMS;
       }
-      if (!validateFloat(v.snapToItem)) {
-        console.error('The "snapToItem" parameter must be of type `number`.');
-        return DEFAULT_ANIMATION_PARAMS;
-      }
       if (!valid) {
         console.error('The "animationParams" parameter must be of type `object`.');
         return DEFAULT_ANIMATION_PARAMS;
@@ -699,7 +575,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   } as any;
 
   /**
-   * Animation parameters. The default value is "{ scrollToItem: 0, snapToItem: 150 }".
+   * Animation parameters. The default value is "{ scrollToItem: 0 }".
    */
   animationParams = input<IAnimationParams>(DEFAULT_ANIMATION_PARAMS, { ...this._animationParamsOptions });
 
@@ -770,19 +646,12 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
    */
   langTextDir = input<TextDirection>(DEFAULT_LANG_TEXT_DIR, { ...this._langTextDir });
 
-  protected _isInfinity: Signal<boolean>;
-
   protected readonly focusedElement = signal<Id | null>(null);
 
   protected readonly classes = signal<{ [cName: string]: boolean }>({ prepared: true });
 
   private _bounds = signal<ISize | null>(null);
   protected get bounds() { return this._bounds; }
-
-  protected _actualScrollbarEnabled: Signal<boolean>;
-
-  private _actualAlignment: Signal<Alignment>;
-  protected get actualAlignment() { return this._actualAlignment; }
 
   private _scrollerBounds = signal<ISize | null>(null);
 
@@ -805,30 +674,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
   protected _precalculatedScrollRightOffset = signal<number>(0);
 
   protected _precalculatedScrollBottomOffset = signal<number>(0);
-
-  protected _actualScrollLeftOffset = signal<number>(0);
-
-  protected _actualScrollRightOffset = signal<number>(0);
-
-  protected _actualScrollTopOffset = signal<number>(0);
-
-  protected _actualScrollBottomOffset = signal<number>(0);
-
-  protected _actualSnapScrollToLeft: Signal<boolean>;
-
-  protected _actualSnapScrollToRight: Signal<boolean>;
-
-  protected _actualSnapScrollToTop: Signal<boolean>;
-
-  protected _actualSnapScrollToBottom: Signal<boolean>;
-
-  protected _alignmentScrollLeftOffset = signal<number>(0);
-
-  protected _alignmentScrollRightOffset = signal<number>(0);
-
-  protected _alignmentScrollTopOffset = signal<number>(0);
-
-  protected _alignmentScrollBottomOffset = signal<number>(0);
 
   private _elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
@@ -883,19 +728,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       takeUntilDestroyed(),
       tap(v => {
         this._service.animationParams = v;
-      }),
-    ).subscribe();
-
-    this._isInfinity = computed(() => {
-      const mode = this.spreadingMode();
-      return isSpreadingMode(mode, SpreadingModes.INFINITY);
-    });
-
-    const $isInfinity = toObservable(this._isInfinity);
-    $isInfinity.pipe(
-      takeUntilDestroyed(),
-      tap(v => {
-        this._service.isInfinity = v;
       }),
     ).subscribe();
 
@@ -976,19 +808,19 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       }),
     ).subscribe();
 
-    const $scrollLeftOffset = toObservable(this._actualScrollLeftOffset).pipe(
+    const $scrollLeftOffset = toObservable(this._precalculatedScrollLeftOffset).pipe(
       takeUntilDestroyed(),
       distinctUntilChanged(),
     ),
-      $scrollRightOffset = toObservable(this._actualScrollRightOffset).pipe(
+      $scrollRightOffset = toObservable(this._precalculatedScrollRightOffset).pipe(
         takeUntilDestroyed(),
         distinctUntilChanged(),
       ),
-      $scrollTopOffset = toObservable(this._actualScrollTopOffset).pipe(
+      $scrollTopOffset = toObservable(this._precalculatedScrollTopOffset).pipe(
         takeUntilDestroyed(),
         distinctUntilChanged(),
       ),
-      $scrollBottomOffset = toObservable(this._actualScrollBottomOffset).pipe(
+      $scrollBottomOffset = toObservable(this._precalculatedScrollBottomOffset).pipe(
         takeUntilDestroyed(),
         distinctUntilChanged(),
       );
@@ -1027,30 +859,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       this._service.clickDistance = dist;
     });
 
-    this._actualSnapScrollToLeft = computed(() => {
-      const snapScrollToLeft = this.snapScrollToLeft(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToLeft;
-    });
-
-    this._actualSnapScrollToRight = computed(() => {
-      const snapScrollToRight = this.snapScrollToRight(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToRight;
-    });
-
-    this._actualSnapScrollToTop = computed(() => {
-      const snapScrollToTop = this.snapScrollToTop(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToTop;
-    });
-
-    this._actualSnapScrollToBottom = computed(() => {
-      const snapScrollToBottom = this.snapScrollToBottom(), spreadingMode = this.spreadingMode(),
-        isInfinity = isSpreadingMode(spreadingMode, SpreadingModes.INFINITY);
-      return isInfinity ? false : snapScrollToBottom;
-    });
-
     const $viewInit = this.$viewInit,
       $fireUpdate = this.$fireUpdate;
 
@@ -1066,22 +874,21 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       filter(v => !!v),
       switchMap(() => {
         return combineLatest([
-          $alignment, $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollRightOffset, $bounds, $precalculatedScrollLeftOffset,
-          $precalculatedScrollRightOffset, $precalculatedScrollTopOffset, $precalculatedScrollBottomOffset, $isInfinity,
+          $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollRightOffset, $bounds, $precalculatedScrollLeftOffset,
+          $precalculatedScrollRightOffset, $precalculatedScrollTopOffset, $precalculatedScrollBottomOffset,
         ]).pipe(
           takeUntilDestroyed(this._destroyRef),
           tap(() => {
-            this.updateOffsetsByAllignment();
             this._scrollerComponent()?.refreshScrollbar();
           }),
         );
       }),
     ).subscribe();
 
-    const $snapScrollToLeft = toObservable(this._actualSnapScrollToLeft),
-      $snapScrollToRight = toObservable(this._actualSnapScrollToRight),
-      $snapScrollToTop = toObservable(this._actualSnapScrollToTop),
-      $snapScrollToBottom = toObservable(this._actualSnapScrollToBottom);
+    const $snapScrollToLeft = toObservable(this.snapScrollToLeft),
+      $snapScrollToRight = toObservable(this.snapScrollToRight),
+      $snapScrollToTop = toObservable(this.snapScrollToTop),
+      $snapScrollToBottom = toObservable(this.snapScrollToBottom);
 
     const $isScrollLeft = toObservable(this._isScrollLeft),
       $isScrollRight = toObservable(this._isScrollRight),
@@ -1208,18 +1015,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       }),
     ).subscribe();
 
-    this._actualAlignment = computed(() => {
-      const alignment = this.alignment(), spreadingMode = this.spreadingMode();
-      return isSpreadingMode(spreadingMode, SpreadingModes.INFINITY) ? Alignments.CENTER : alignment;
-    });
-
-    this._actualScrollbarEnabled = computed(() => {
-      const scrollbarEnabled = this.scrollbarEnabled(), spreadingMode = this.spreadingMode();
-      return isSpreadingMode(spreadingMode, SpreadingModes.INFINITY) ? false : scrollbarEnabled;
-    });
-
-    const $alignment = toObservable(this._actualAlignment),
-      $precalculatedScrollLeftOffset = toObservable(this._precalculatedScrollLeftOffset),
+    const $precalculatedScrollLeftOffset = toObservable(this._precalculatedScrollLeftOffset),
       $precalculatedScrollRightOffset = toObservable(this._precalculatedScrollRightOffset),
       $precalculatedScrollTopOffset = toObservable(this._precalculatedScrollTopOffset),
       $precalculatedScrollBottomOffset = toObservable(this._precalculatedScrollBottomOffset),
@@ -1233,25 +1029,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       $scrollSizeY = this._$scrollSizeY.asObservable().pipe(
         takeUntilDestroyed(),
         distinctUntilChanged(),
-      ),
-      $snapToItem = toObservable(this.snapToItem),
-      $snapToItemAlign = toObservable(this.snapToItemAlign);
-
-    $snapToItem.pipe(
-      takeUntilDestroyed(),
-      tap(v => {
-        this._service.snapToItem = v;
-      }),
-    ).subscribe();
-
-    $viewInit.pipe(
-      takeUntilDestroyed(),
-      filter(v => !!v),
-      debounceTime(0),
-      tap(() => {
-        this._scrollerComponent()?.snapIfNeed();
-      }),
-    ).subscribe();
+      );
 
     $direction.pipe(
       takeUntilDestroyed(),
@@ -1306,17 +1084,16 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       takeUntilDestroyed(),
       filter(v => !!v),
       switchMap(() => {
-        return combineLatest([$isInfinity, $snapScrollToLeft, $snapScrollToRight, $snapScrollToTop, $snapScrollToBottom, $precalculatedScrollLeftOffset, $precalculatedScrollRightOffset, $precalculatedScrollTopOffset,
-          $precalculatedScrollBottomOffset, $bounds, $scrollerBounds,
-          $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollBottomOffset, $scrollSizeX, $scrollSizeY, $direction, $snapToItem, $snapToItemAlign,
-          $alignment, this.$fireUpdate,
+        return combineLatest([$snapScrollToLeft, $snapScrollToRight, $snapScrollToTop, $snapScrollToBottom, $precalculatedScrollLeftOffset,
+          $precalculatedScrollRightOffset, $precalculatedScrollTopOffset, $precalculatedScrollBottomOffset, $bounds, $scrollerBounds,
+          $scrollLeftOffset, $scrollRightOffset, $scrollTopOffset, $scrollBottomOffset, $scrollSizeX, $scrollSizeY, $direction,
+          this.$fireUpdate,
         ]).pipe(
           takeUntilDestroyed(this._destroyRef),
           tap(([
-            isInfinity, snapScrollToLeft, snapScrollToRight, snapScrollToTop, snapScrollToBottom, precalculatedScrollLeftOffset, precalculatedScrollRightOffset,
+            snapScrollToLeft, snapScrollToRight, snapScrollToTop, snapScrollToBottom, precalculatedScrollLeftOffset, precalculatedScrollRightOffset,
             precalculatedScrollTopOffset, precalculatedScrollBottomOffset, bounds, scrollerBounds,
-            scrollLeftOffset, scrollRightOffset, scrollTopOffset, scrollBottomOffset, scrollSizeX, scrollSizeY, direction, snapToItem, snapToItemAlign,
-            alignment,
+            scrollLeftOffset, scrollRightOffset, scrollTopOffset, scrollBottomOffset, scrollSizeX, scrollSizeY, direction,
           ]) => {
             const scroller = this._scrollerComponent();
             if (!!scroller) {
@@ -1331,8 +1108,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
                   currentScrollSizeY = scroller.scrollTop;
 
                 this.snappingHandler();
-
-                this.updateOffsetsByAllignment();
 
                 const roundedMaxPositionAfterUpdateX = scroller.actualScrollWidth,
                   roundedMaxPositionAfterUpdateY = scroller.actualScrollHeight;
@@ -1604,7 +1379,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
           this._isScrollBottom.set(false);
         }
       } else {
-        const snapScrollToLeft = this._actualSnapScrollToLeft(), snapScrollToRight = this._actualSnapScrollToRight();
+        const snapScrollToLeft = this.snapScrollToLeft(), snapScrollToRight = this.snapScrollToRight();
         if (!snapScrollToLeft && snapScrollToRight) {
           this._isScrollLeft.set(false);
           this._isScrollRight.set(true);
@@ -1615,7 +1390,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
           this._isScrollLeft.set(false);
           this._isScrollRight.set(false);
         }
-        const snapScrollToTop = this._actualSnapScrollToTop(), snapScrollToBottom = this._actualSnapScrollToBottom();
+        const snapScrollToTop = this.snapScrollToTop(), snapScrollToBottom = this.snapScrollToBottom();
         if (!snapScrollToTop && snapScrollToBottom) {
           this._isScrollLeft.set(false);
           this._isScrollRight.set(true);
@@ -1662,47 +1437,6 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
     }
   }
 
-  private updateOffsetsByAllignment() {
-    const scrollerComponent = this._scrollerComponent();
-    if (!!scrollerComponent) {
-      const alignment = this._actualAlignment(),
-        isInfinity = this._isInfinity(),
-        { width, height } = this._bounds() || { width: DEFAULT_LIST_SIZE, height: DEFAULT_LIST_SIZE },
-        viewportSizeWidth = width,
-        viewportSizeHeight = height,
-        { width: contentWidth, height: contentHeight } = scrollerComponent.contentBounds(),
-        precalculatedScrollLeftOffset = this._precalculatedScrollLeftOffset(),
-        precalculatedScrollRightOffset = this._precalculatedScrollRightOffset(),
-        precalculatedScrollTopOffset = this._precalculatedScrollTopOffset(),
-        precalculatedScrollBottomOffset = this._precalculatedScrollBottomOffset();
-      switch (alignment) {
-        case Alignments.NONE: {
-          this._actualScrollLeftOffset.set(precalculatedScrollLeftOffset);
-          this._actualScrollRightOffset.set(precalculatedScrollRightOffset);
-          this._actualScrollTopOffset.set(precalculatedScrollTopOffset);
-          this._actualScrollBottomOffset.set(precalculatedScrollBottomOffset);
-          break;
-        }
-        case Alignments.CENTER: {
-          const alignmentLeftOffset = viewportSizeWidth * .5 - contentWidth * (isInfinity || !scrollerComponent.scrollableX ? 0 : .5),
-            alignmentRightOffset = viewportSizeWidth * .5 - contentWidth * (isInfinity || !scrollerComponent.scrollableX ? 0 : .5),
-            alignmentTopOffset = viewportSizeHeight * .5 - contentHeight * (isInfinity || !scrollerComponent.scrollableY ? 0 : .5),
-            alignmentBottomOffset = viewportSizeHeight * .5 - contentHeight * (isInfinity || !scrollerComponent.scrollableY ? 0 : .5);
-
-          this._alignmentScrollLeftOffset.set(alignmentLeftOffset);
-          this._alignmentScrollRightOffset.set(alignmentRightOffset);
-          this._alignmentScrollTopOffset.set(alignmentTopOffset);
-          this._alignmentScrollBottomOffset.set(alignmentBottomOffset);
-          this._actualScrollLeftOffset.set(precalculatedScrollLeftOffset + alignmentLeftOffset);
-          this._actualScrollRightOffset.set(precalculatedScrollRightOffset + alignmentRightOffset);
-          this._actualScrollTopOffset.set(precalculatedScrollTopOffset + alignmentTopOffset);
-          this._actualScrollBottomOffset.set(precalculatedScrollBottomOffset + alignmentBottomOffset);
-          break;
-        }
-      }
-    }
-  }
-
   /**
    * The method scrolls the scroll view and returns the animation ids if the behavior is set to smooth or null 
    * if the behavior is set to auto, instant, or not set.
@@ -1718,7 +1452,7 @@ export class NgVirtualScrollViewComponent implements OnDestroy {
       duration = options?.duration;
     const scroller = this._scrollerComponent();
     if (!!scroller) {
-      scroller.stopScrolling(true);
+      scroller.stopScrolling();
       return scroller.scroll({ x, y, left, top, behavior, blending, ease, duration, userAction: true });
     }
     return null;
